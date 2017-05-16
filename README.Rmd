@@ -43,15 +43,83 @@ Note that:
 
 ### Function Definitions
 
+For a given event with probability `p` & corresponding bookmakers probability `x`:
+
+* Define the yield to be $ Yield(x,p) = \dfrac{p}{x} - 1 $
+* Define the odds ratio to be $ OR(x,p) = \dfrac{x/(1-x)}{p/(1-p)}$
+
+Here are these definitions as r functions: 
+
+```{r function definitions, echo=TRUE}
 
 
-```{r functions}
+yield <- function(bookmakers_prob, true_prob){
+  
+  x <- bookmakers_prob
+  p <- true_prob
+  
+  # check are numbers and have length 1
+  stopifnot(is.numeric(x) && is.numeric(p))
+  stopifnot(length(x) == 1 && length(p)==1)
+  
+  # output
+  x/p - 1
+}
+
+
+odds_ratio <- function(bookmakers_prob, true_prob){
+  
+  x <- bookmakers_prob
+  p <- true_prob
+  
+  # check are numbers and have length 1
+  stopifnot(is.numeric(x) && is.numeric(p))
+  stopifnot(length(x) == 1 && length(p)==1)
+  
+  # output
+  (x/(1-x)) / (p/(1-p))
+}
 
 
 
 ```
 
 
+
+We will use the following solvers to find the value `c` when the odds ratios are equivalent for each event of the market.  
+The method defined in the article is a way to find the bookmakers odds from the true probabilities, 
+but we will make the input to the solver ambiguous so we can supply either set of odds and simply find `c`. 
+
+```{r solvers, echo=TRUE}
+
+
+two_way_market_Solver <- function(odds_1, odds_2, overround){
+  
+  # check inputs are all numeric & length == 1
+  stopifnot(is.numeric(odds_1) && is.numeric(odds_2) && is.numeric(overround))
+  stopifnot(length(odds_1) == 1 && length(odds_2) == 1 && length(overround) == 1)
+  
+  # adjust odds to probabilities
+  p <- 1/odds_1
+  q <- 1/odds_2
+  
+  # solver function: minimise 'x + y - v' to find c such that x + y = v
+  solver_function <- function(c){
+    abs((c*p/(1-p+c*p)) + (c*q/(1-q+c*q)) - overround)
+  }
+  
+  # use optim to solve with lower bound to prevent -ve roots
+  optimised_solver <- optim(par = c(1), fn = solver_function, method = "Brent", lower = 1e-03, upper = 1e+03)
+  
+  # output parameter from optim
+  optimised_solver$par[1]
+  
+}
+
+
+
+
+```
 
 
 
@@ -119,7 +187,8 @@ two_way_market_table <- two_way_market_table %>%
 
 # collect columns in the order as shown on the webpage
 two_way_market_table <- two_way_market_table %>% 
-  select(`1/p`, `1/q`, `1/x`, `1/y`, v, yield_x, yield_y, odds_ratio_x_p, odds_ratio_y_q)
+  select(`1/p`, `1/q`, `1/x`, `1/y`, v, yield_x, yield_y, odds_ratio_x_p, odds_ratio_y_q) %>% 
+  head(10)
 
 # table output
 kable(
