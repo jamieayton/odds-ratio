@@ -92,7 +92,7 @@ odds_ratio <- function(bookmakers_prob, true_prob){
 
 We will use the following solvers to find the value `c` when the odds ratios are equivalent for each event of the market.  
 The method defined in the article is a way to find the bookmakers odds from the true probabilities, 
-but we will make the input to the solver ambiguous so we can supply either set of odds and simply find `c`.  
+but we will make the input to the solver ambiguous so we can supply either set of odds and the desired overround and simply find the corresponding `c`.  
 
 Note that these functions are not vectorised so we call them with either `lapply` or `purrr::pmap`.  
 
@@ -309,6 +309,23 @@ real_odds_table <- tibble(
   ) %>% 
   mutate(
     v = x + y + z
+  )
+
+# find c, but this time we are providing bookmakers odds and desiring an overround of 1
+real_odds_table <- real_odds_table %>% 
+  mutate(
+    c = pmap_dbl(
+      list(real_odds_table$`1/x`, real_odds_table$`1/y`, real_odds_table$`1/z`, rep(1, nrow(real_odds_table))), 
+      three_way_market_solver
+    )
+  ) %>% 
+  mutate(
+    p = c*x/(1-x+c*x),
+    q = c*y/(1-y+c*y), 
+    r = c*z/(1-z+c*z), 
+    `1/p` = 1/p, 
+    `1/q` = 1/q, 
+    `1/r` = 1/r
   )
 
 
