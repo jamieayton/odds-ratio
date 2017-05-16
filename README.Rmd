@@ -158,9 +158,6 @@ three_way_market_solver <- function(odds_1, odds_2, odds_3, overround){
 ```
 
 
-Note that these functions are not vectorised so we call them with either `lapply` or `purrr::pmap`.
-
-
 ***
 
 ### Example 1: Two-Way Market Table
@@ -233,8 +230,8 @@ three_way_market_table <- tibble(
     v = seq(from=1, to=1.1, by=0.01) 
   ) %>% 
   mutate(
-    `1/p` = 2, 
-    `1/q` = 3, 
+    `1/p` = 1.66, 
+    `1/q` = 10/3, 
     `1/r` = 1/(1-(1/`1/p`)-(1/`1/q`))
   ) %>% 
   mutate(
@@ -287,6 +284,40 @@ kable(
 
 
 ```
+
+
+***
+
+### Example 3: Estimating True Probabilities from Bookmakers Odds
+
+The following example shows a set of real bookmakers odds for three-way market, and we will use these to estimate the true odds.
+
+
+```{r three-way market table, echo=FALSE}
+
+
+# create table with increasing sequence of ovverround & made-up odds
+real_odds_table <- tibble(
+  `1/x` = c(1.108, 1.160, 2.740, 4.439), 
+  `1/y` = c(12.000, 9.000, 3.330, 3.780), 
+  `1/z` = c(28.500, 21.000, 2.820, 1.884)
+  ) %>% 
+  mutate(
+    x = 1/`1/x`, 
+    y = 1/`1/y`, 
+    z = 1/`1/z`
+  ) %>% 
+  mutate(
+    v = x + y + z
+  )
+
+
+
+
+
+```
+
+
 
 
 ***
