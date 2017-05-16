@@ -47,6 +47,10 @@ two_way_market_table <- tibble(
   mutate(
     `1/q` = 1/(1-(1/`1/p`)), 
     v = 1.081  # v = overround
+  ) %>% 
+  mutate(
+    p = 1/`1/p`,          # add p & q for easier calculations later
+    q = 1/`1/q` 
   )
 
 
@@ -65,19 +69,32 @@ two_way_market_Solver <- function(odds_p, odds_q, overround){
     abs((c*p/(1-p+c*p)) + (c*q/(1-q+c*q)) - overround)
   }
   
-  # use optim to solve: set lower bound to prevent -ve roots
-  optimised_solver <- optim(c(1), fn=solver_function, method="Brent", lower=1e-03, upper = 1e+03)
+  # use optim to solve with lower bound to prevent -ve roots
+  optimised_solver <- optim(par = c(1), fn = solver_function, method = "Brent", lower = 1e-03, upper = 1e+03)
   
   # output parameter from optim
   optimised_solver$par[1]
   
 }
 
-# derive x & y with solver
+# derive c with solver, add xy, yields & odds ratios
 two_way_market_table <- two_way_market_table %>% 
-#  mutate(
-#    c = purrr::map3_dbl(`1/p`, `1/q`, v, two_way_market_Solver)
-#  )
+  mutate(
+    c = pmap_dbl(list(two_way_market_table$`1/p`, two_way_market_table$`1/q`, two_way_market_table$v), two_way_market_Solver)
+  ) %>% 
+  mutate(
+    x = c*p/(1-p+c*p),
+    y = c*q/(1-q+c*q), 
+    `1/x` = 1/x, 
+    `1/y` = 1/y
+  ) %>% 
+  mutate(
+    yield_x = p*`1/x` - 1*(1-p), 
+    yield_y = q*`1/y` - 1*(1-q), 
+    odds_ratio_x_p = (x/(1-x)) / (p/(1-p)), 
+    odds_ratio_y_q = (y/(1-y)) / (q/(1-q)) 
+  )
+
 
 
 
