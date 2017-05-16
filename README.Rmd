@@ -157,8 +157,9 @@ three_way_market_Solver <- function(odds_1, odds_2, odds_3, overround){
 
 ***
 
-### Two-Way Market Table
+### Example 1: Two-Way Market Table
 
+The following table is a recreation of the table shown in the referenced article - I have limited the table to show the top 10 rows.
 
 ```{r two-way market table, echo=FALSE}
 
@@ -214,19 +215,67 @@ kable(
 
 ***
 
-### Three-Way Market Table
+### Example 2: Three-Way Market Table
+
+The following example shows the same set of made-up odds for a three-way market, but this time we will see what happens as the overround increases.
 
 ```{r three-way market table, echo=FALSE}
 
 
-# create table with made up sequence of odds
+# create table with increasing sequence of ovverround & made-up odds
 three_way_market_table <- tibble(
-  `1/p` = seq(from = 1.6, to = 1.2, by = -0.05), 
-  `1/q` = seq(from = 8, to = 16, by = 1)
+    v = seq(from=1, to=1.1, by=0.01) 
   ) %>% 
   mutate(
+    `1/p` = 2, 
+    `1/q` = 3, 
     `1/r` = 1/(1-(1/`1/p`)-(1/`1/q`))
+  ) %>% 
+  mutate(
+    p = 1/`1/p`, 
+    q = 1/`1/q`, 
+    r = 1/`1/r`
   )
+
+# add c
+three_way_market_table <- three_way_market_table %>% 
+  mutate(
+    c = pmap_dbl(
+      list(three_way_market_table$`1/p`, three_way_market_table$`1/q`, three_way_market_table$`1/r`, three_way_market_table$v), 
+      three_way_market_solver
+    )
+  )
+
+# get x,y,z = bookmakers probabilities
+three_way_market_table <- three_way_market_table %>% 
+  mutate(
+    x = c*p/(1-p+c*p),
+    y = c*q/(1-q+c*q), 
+    z = c*r/(1-r+c*r), 
+    `1/x` = 1/x, 
+    `1/y` = 1/y, 
+    `1/z` = 1/z
+  ) %>% 
+  mutate(
+    yield_x = p*`1/x` - 1, 
+    yield_y = q*`1/y` - 1, 
+    yield_z = q*`1/y` - 1, 
+    odds_ratio_x_p = (x/(1-x)) / (p/(1-p)), 
+    odds_ratio_y_q = (y/(1-y)) / (q/(1-q)), 
+    odds_ratio_z_r = (z/(1-z)) / (r/(1-r))
+  )
+
+
+# collect columns in the order as shown on the webpage
+two_way_market_table <- two_way_market_table %>% 
+  select(`1/p`, `1/q`, `1/r`, `1/x`, `1/y`, `1/z`, v, odds_ratio_x_p, odds_ratio_y_q, odds_ratio_z_r)
+
+# table output
+kable(
+  two_way_market_table, 
+  col.names = c("1/p", "1/q", "1/r", "1/x", "1/y", "1/z",  "v", "OR(x,p)", "OR(y,q)", "OR(z,r)"), 
+  digits = c( rep(2, 3), rep(2, 3), 4, rep(3, 3))
+)
 
 
 
