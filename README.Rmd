@@ -105,7 +105,7 @@ two_way_market_table <- two_way_market_table %>%
 kable(
   two_way_market_table, 
   col.names = c("1/p", "1/q", "1/x", "1/y", "v", "Y(x)", "Y(y)", "OR(x,p)", "OR(y,q)"), 
-  digits = c( 3, 3, 3, 3, 4, 3, 3, 3, 3)
+  digits = c( 2, 2, 2, 2, 4, 3, 3, 3, 3)
 )
 
 
