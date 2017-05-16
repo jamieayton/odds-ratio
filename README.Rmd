@@ -27,13 +27,33 @@ For a two-way betting market we will use the following definitions:
 * `v` is the overround of the bookmakers market and thus $v \ge 1$
 
 
+For a three-way betting market we extend to: 
+
+* `p, q & r` for 'true' probabilities
+* `x, y & z` for the bookmakers probabilities
+
+
 Note that:
 
-* For a three-way market we will use terms `p, q & r` for 'true' probabilities & `x, y & z` for the bookmakers probabilities
 * We have $p + q = 1$ (or $p + q + r = 1$ for a three-way market)
 * We have $x + y = v$ (or $x + y + z = v$)
 
 ***
+
+
+### Function Definitions
+
+
+
+```{r functions}
+
+
+
+```
+
+
+
+
 
 ### Two-Way Market Table
 
@@ -127,6 +147,7 @@ three_way_market_table <- tibble(
   mutate(
     `1/r` = 1/(1-(1/`1/p`)-(1/`1/q`))
   )
+
 
 
 
