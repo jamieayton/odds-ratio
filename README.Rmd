@@ -90,8 +90,8 @@ two_way_market_table <- two_way_market_table %>%
     `1/y` = 1/y
   ) %>% 
   mutate(
-    yield_x = p*`1/x` - 1*(1-p), 
-    yield_y = q*`1/y` - 1*(1-q), 
+    yield_x = p*`1/x` - 1, 
+    yield_y = q*`1/y` - 1, 
     odds_ratio_x_p = (x/(1-x)) / (p/(1-p)), 
     odds_ratio_y_q = (y/(1-y)) / (q/(1-q)) 
   )
@@ -105,7 +105,7 @@ two_way_market_table <- two_way_market_table %>%
 kable(
   two_way_market_table, 
   col.names = c("1/p", "1/q", "1/x", "1/y", "v", "Y(x)", "Y(y)", "OR(x,p)", "OR(y,q)"), 
-  digits = c( 3, 3, 3, 3, 4, 3, 3, 4, 4)
+  digits = c( 3, 3, 3, 3, 4, 3, 3, 3, 3)
 )
 
 
