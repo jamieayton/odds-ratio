@@ -37,7 +37,7 @@ Note that:
 ### Two-Way Market Table
 
 
-```{r tibble setup, echo=FALSE}
+```{r two-way market table, echo=FALSE}
 
 
 # create table
@@ -96,6 +96,12 @@ two_way_market_table <- two_way_market_table %>%
   )
 
 
+# collect columns in the order as shown on the webpage
+two_way_market_table <- two_way_market_table %>% 
+  select(`1/p`, `1/q`, `1/x`, `1/y`, v, yield_x, yield_y, odds_ratio_x_p, odds_ratio_y_q)
+
+# table output
+kable(two_way_market_table, col.names=c(`1/p`, `1/q`, `1/x`, `1/y`, `v`, `Y(x)`, `Y(y)`, `OR(x,p)`, `OR(y,q)`))
 
 
 ```
