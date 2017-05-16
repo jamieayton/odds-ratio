@@ -92,7 +92,10 @@ odds_ratio <- function(bookmakers_prob, true_prob){
 
 We will use the following solvers to find the value `c` when the odds ratios are equivalent for each event of the market.  
 The method defined in the article is a way to find the bookmakers odds from the true probabilities, 
-but we will make the input to the solver ambiguous so we can supply either set of odds and simply find `c`. 
+but we will make the input to the solver ambiguous so we can supply either set of odds and simply find `c`.  
+
+Note that these functions are not vectorised so we call them with either `lapply` or `purrr::pmap`.  
+
 
 ```{r solver two-way market, echo=TRUE}
 
