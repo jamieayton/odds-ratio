@@ -97,7 +97,7 @@ but we will make the input to the solver ambiguous so we can supply either set o
 ```{r solver two-way market, echo=TRUE}
 
 
-two_way_market_Solver <- function(odds_1, odds_2, overround){
+two_way_market_solver <- function(odds_1, odds_2, overround){
   
   # check inputs are all numeric & length == 1
   stopifnot(all(is.numeric(odds_1), is.numeric(odds_2), is.numeric(overround)))
@@ -155,6 +155,9 @@ three_way_market_solver <- function(odds_1, odds_2, odds_3, overround){
 ```
 
 
+Note that these functions are not vectorised so we call them with either `lapply` or `purrr::pmap`.
+
+
 ***
 
 ### Example 1: Two-Way Market Table
@@ -181,7 +184,7 @@ two_way_market_table <- tibble(
 # derive c with solver, add xy, yields & odds ratios
 two_way_market_table <- two_way_market_table %>% 
   mutate(
-    c = pmap_dbl(list(two_way_market_table$`1/p`, two_way_market_table$`1/q`, two_way_market_table$v), two_way_market_Solver)
+    c = pmap_dbl(list(two_way_market_table$`1/p`, two_way_market_table$`1/q`, two_way_market_table$v), two_way_market_solver)
   ) %>% 
   mutate(
     x = c*p/(1-p+c*p),
