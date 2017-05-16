@@ -111,3 +111,23 @@ kable(
 
 ```
 
+
+***
+
+### Three-Way Market Table
+
+```{r three-way market table, echo=FALSE}
+
+
+# create table with made up sequence of odds
+three_way_market_table <- tibble(
+  `1/p` = seq(from = 1.6, to = 1.2, by = -0.05), 
+  `1/q` = seq(from = 8, to = 16, by = 1)
+  ) %>% 
+  mutate(
+    `1/r` = 1/(1-(1/`1/p`)-(1/`1/q`))
+  )
+
+
+
+```
