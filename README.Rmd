@@ -126,7 +126,7 @@ two_way_market_Solver <- function(odds_1, odds_2, overround){
 
 ```{r solver - three-way market, echo=TRUE}
 
-three_way_market_Solver <- function(odds_1, odds_2, odds_3, overround){
+three_way_market_solver <- function(odds_1, odds_2, odds_3, overround){
   
   # check inputs are all numeric & length == 1
   stopifnot(all(is.numeric(odds_1), is.numeric(odds_2), is.numeric(odds_3), is.numeric(overround)))
