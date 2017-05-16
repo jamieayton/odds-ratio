@@ -290,7 +290,8 @@ kable(
 
 #### Example 3: Estimating True Probabilities from Bookmakers Odds
 
-The following example shows a set of real bookmakers odds for three-way market, and we will use these to estimate the true odds.
+The following example shows a set of real bookmakers odds for three-way market, and we will use these to estimate the true odds.  
+To achieve this we will use the three-way market solver function, and supply it with the bookmakers odds but set the overround argument to be one. This means the function will find the value `c` which corresponds to the odds ratios being equal and the overround being equal to 1.  
 
 
 ```{r real odds table, echo=FALSE}
