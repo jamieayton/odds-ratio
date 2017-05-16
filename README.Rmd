@@ -22,14 +22,14 @@ This includes a function to find the value 'c' when the odds ratios are equal fo
 
 For a two-way betting market we will use the following definitions:  
 
-* `1/p` & `1/q` are 'true' odds; where p & q are the 'true' probabilities of events p & q occurring
-* similarly `1/x` & `1/y` are bookmakers odds; where x & y are the implied probabilities
-* v is the overround of the bookmakers market & $v \ge 1$
+* `1/p` & `1/q` are 'true' odds; where `p` & `q` are the 'true' probabilities of events `p` & `q` occurring
+* similarly `1/x` & `1/y` are bookmakers odds; where `x` & `y` are the implied probabilities
+* `v` is the overround of the bookmakers market and thus $v \ge 1$
 
 
 Note that:
 
-* For a three-way market we will use terms p, q & r for 'true' probabilities & x, y & z for the bookmakers probabilities
+* For a three-way market we will use terms `p, q & r` for 'true' probabilities & `x, y & z` for the bookmakers probabilities
 * We have $p + q = 1$ (or $p + q + r = 1$ for a three-way market)
 * We have $x + y = v$ (or $x + y + z = v$)
 
@@ -102,7 +102,11 @@ two_way_market_table <- two_way_market_table %>%
   select(`1/p`, `1/q`, `1/x`, `1/y`, v, yield_x, yield_y, odds_ratio_x_p, odds_ratio_y_q)
 
 # table output
-kable(two_way_market_table, col.names=c("1/p", "1/q", "1/x", "1/y", "v", "Y(x)", "Y(y)", "OR(x,p)", "OR(y,q)"))
+kable(
+  two_way_market_table, 
+  col.names = c("1/p", "1/q", "1/x", "1/y", "v", "Y(x)", "Y(y)", "OR(x,p)", "OR(y,q)"), 
+  digits = c( 3, 3, 3, 3, 4, 3, 3, 4, 4)
+)
 
 
 ```
