@@ -1,30 +1,85 @@
 ---
-title: "Untitled"
+title: "Odds Ratio"
 output: github_document
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+
+library('tidyverse')
+
 ```
 
-## GitHub Documents
+### Summary
 
-This is an R Markdown format used for publishing markdown documents to GitHub. When you click the **Knit** button all R code chunks are run and a markdown file (.md) suitable for publishing to GitHub is generated.
+A simple recreation of the table shown in Keith Cheung's [Fixed-Odds Betting and Traditional Odds]("http://www.sportstradingnetwork.com/article/fixed-odds-betting-traditional-odds/") article.  
+This includes a function to find the value 'c' when the odds ratios are equal for a two-way & three-way market.  
 
-## Including Code
+***
 
-You can include R code in the document as follows:
+### Definitions
 
-```{r cars}
-summary(cars)
+For a two-way betting market we will use the following definitions:  
+
+* `1/p` & `1/q` are 'true' odds; where p & q are the 'true' probabilities of events p & q occurring
+* similarly `1/x` & `1/y` are bookmakers odds; where x & y are the implied probabilities
+* v is the overround of the bookmakers market & $v \ge 1$
+
+
+Note that:
+
+* For a three-way market we will use terms p, q & r for 'true' probabilities & x, y & z for the bookmakers probabilities
+* We have $p + q = 1$ (or $p + q + r = 1$ for a three-way market)
+* We have $x + y = v$ (or $x + y + z = v$)
+
+***
+
+### Two-Way Market Table
+
+
+```{r tibble setup, echo=FALSE}
+
+
+# create table
+two_way_market_table <- tibble(
+  `1/p` = c(seq(from = 2, to = 1.08, by = -0.04), 1.06, 1.04, 1.02, 1.01)  # by -0.04, for > 1.08; more granular < 1.08
+  ) %>% 
+  mutate(
+    `1/q` = 1/(1-(1/`1/p`)), 
+    v = 1.081  # v = overround
+  )
+
+
+# function to find c
+two_way_market_Solver <- function(odds_p, odds_q, overround){
+  
+  # check inputs are all numeric
+  stopifnot(is.numeric(odds_p) && is.numeric(odds_q) && is.numeric(overround))
+  
+  # adjust odds to probabilities
+  p <- 1/odds_p
+  q <- 1/odds_q
+  
+  # solver function: x + y - v = 0 
+  solver_function <- function(c){
+    abs((c*p/(1-p+c*p)) + (c*q/(1-q+c*q)) - overround)
+  }
+  
+  # use optim to solve: set lower bound to prevent -ve roots
+  optimised_solver <- optim(c(1), fn=solver_function, method="Brent", lower=1e-03, upper = 1e+03)
+  
+  # output parameter from optim
+  optimised_solver$par[1]
+  
+}
+
+# derive x & y with solver
+two_way_market_table <- two_way_market_table %>% 
+#  mutate(
+#    c = purrr::map3_dbl(`1/p`, `1/q`, v, two_way_market_Solver)
+#  )
+
+
+
 ```
 
-## Including Plots
-
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
-```
-
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
