@@ -197,10 +197,10 @@ two_way_market_table <- two_way_market_table %>%
     `1/y` = 1/y
   ) %>% 
   mutate(
-    yield_x = p*`1/x` - 1, 
-    yield_y = q*`1/y` - 1, 
-    odds_ratio_x_p = (x/(1-x)) / (p/(1-p)), 
-    odds_ratio_y_q = (y/(1-y)) / (q/(1-q)) 
+    yield_x = map2_dbl(x, p, yield), 
+    yield_y = map2_dbl(y, q, yield),  
+    odds_ratio_x_p = map2_dbl(x, p, odds_ratio), 
+    odds_ratio_y_q = map2_dbl(y, q, odds_ratio) 
   )
 
 
@@ -265,12 +265,9 @@ three_way_market_table <- three_way_market_table %>%
     `1/z` = 1/z
   ) %>% 
   mutate(
-    yield_x = p*`1/x` - 1, 
-    yield_y = q*`1/y` - 1, 
-    yield_z = q*`1/y` - 1, 
-    odds_ratio_x_p = (x/(1-x)) / (p/(1-p)), 
-    odds_ratio_y_q = (y/(1-y)) / (q/(1-q)), 
-    odds_ratio_z_r = (z/(1-z)) / (r/(1-r))
+    odds_ratio_x_p = map2_dbl(x, p, odds_ratio), 
+    odds_ratio_y_q = map2_dbl(y, q, odds_ratio), 
+    odds_ratio_z_r = map2_dbl(z, r, odds_ratio)
   )
 
 
@@ -341,12 +338,12 @@ real_odds_table <- real_odds_table %>%
 # yields and odds ratios
 real_odds_table <- real_odds_table %>% 
   mutate(
-    yield_x = p*`1/x` - 1, 
-    yield_y = q*`1/y` - 1, 
-    yield_z = q*`1/y` - 1, 
-    odds_ratio_x_p = (x/(1-x)) / (p/(1-p)), 
-    odds_ratio_y_q = (y/(1-y)) / (q/(1-q)), 
-    odds_ratio_z_r = (z/(1-z)) / (r/(1-r))
+    yield_x = map2_dbl(x, p, yield), 
+    yield_y = map2_dbl(y, q, yield), 
+    yield_z = map2_dbl(z, r, yield), 
+    odds_ratio_x_p = map2_dbl(x, p, odds_ratio), 
+    odds_ratio_y_q = map2_dbl(y, q, odds_ratio),
+    odds_ratio_z_r = map2_dbl(z, r, odds_ratio)
   )
 
 
