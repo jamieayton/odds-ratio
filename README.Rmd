@@ -1,6 +1,10 @@
 ---
 title: "Odds Ratio"
-output: github_document
+author: "Jamie Ayton"
+date: "2017-05-17"
+output:
+  html_document:
+    keep_md: true
 ---
 
 ```{r setup, include=FALSE}
