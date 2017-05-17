@@ -64,7 +64,7 @@ yield <- function(bookmakers_prob, true_prob){
   stopifnot(length(x) == 1 && length(p)==1)
   
   # output
-  x/p - 1
+  p/x - 1
 }
 ```
 
