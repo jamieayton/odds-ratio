@@ -41,3 +41,79 @@ For a three-way market, given bookmakers odds `1/p, 1/q, 1/r` with corresponding
 
 ***
 
+
+### Data
+
+```{r import data, echo=FALSE}
+
+# read csv
+football_data <- read_csv("C:/R Projects/odds-ratio/football_data.csv")
+
+
+
+# filter for leagues & seasons
+# select columns which are needed
+# remove rows with NAs
+
+football_data <- football_data %>% 
+  filter(season_code %in% c("09-10", "10-11", "11-12", "12-13", "13-14", "14-15", "15-16", "16-17")) %>% 
+  filter(league_code %in% c("D1", "E0", "E1", "E2", "E3", "F1", "I1", "SC0", "SP1")) %>% 
+  select(
+    one_of(
+      c("Div", "Date", "HomeTeam", "AwayTeam", "FTR","BbMxH", "BbMxD", "BbMxA", "BbAvH", "BbAvD", "BbAvA", "B365H", "B365D", "B365A", "PSH", "PSD", "PSA")
+    )
+  ) %>% 
+  na.omit()
+
+
+
+# bookmakers to use
+bookmaker_codes <- tibble(
+  bookmaker_name = c("Bet Brain - Max", "Bet Brain - Average", "Bet365", "Pinnacle Sports"), 
+  bookmaker_code = c("BbMx", "BbAv", "Bet365", "PS")
+)
+
+
+
+# gather odds together to single column, 
+# split out bookmaker & odds selection
+# spread to seperate columns for H, D, A
+# add column for 'overround'
+# merge bookmaker_codes
+# gather columns H, D, A again as 'odds_type'
+
+
+gather_columns <- c("BbMxH", "BbMxD", "BbMxA", "BbAvH", "BbAvD", "BbAvA", "B365H", "B365D", "B365A", "PSH", "PSD", "PSA")
+gather_columns <- which(colnames(football_data) %in%  gather_columns)
+
+football_data <- football_data %>% 
+  gather(
+    ., "bookmaker_code","odds_value", gather_columns
+  ) %>% 
+  mutate(
+    odds_type = substring(bookmaker_code, nchar(bookmaker_code)), 
+    bookmaker_code = substring(bookmaker_code, 1, nchar(bookmaker_code)-1)
+  ) %>% 
+  mutate(
+    odds_value = as.numeric(odds_value)
+  ) %>% 
+  spread(
+    ., "odds_type", "odds_value"
+  ) %>% 
+  mutate(
+    overround = 1/H + 1/D + 1/A
+  ) %>% 
+  left_join(
+    ., bookmaker_codes, by="bookmaker_code"
+  ) %>% 
+  gather(
+    ., "odds_type","odds_value", which(colnames(.) %in% c("H", "D", "A"))
+  )
+  
+  
+# rm no longer required items
+rm(bookmaker_codes, gather_columns)
+
+
+```
+
