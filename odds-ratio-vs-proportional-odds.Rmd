@@ -11,6 +11,7 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 
 library('tidyverse')
+library('stringr')
 library('knitr')
 
 ```
@@ -44,7 +45,7 @@ For a three-way market, given bookmakers odds `1/p, 1/q, 1/r` with corresponding
 
 ### Data
 
-```{r import data, echo=FALSE}
+```{r import data, include=FALSE}
 
 # read csv
 football_data <- read_csv("C:/R Projects/odds-ratio/football_data.csv")
@@ -64,7 +65,7 @@ football_data <- football_data %>%
     league_code %in% c("D1", "E0", "E1", "E2", "E3", "F1", "I1", "SC0", "SP1")
   ) %>% 
   select(
-    Div, Date, HomeTeam, AwayTeam, FTR, BbMxH, BbMxD, BbMxA, BbAvH, BbAvD, BbAvA, B365H, B365D, B365A, PSH, PSD, PSA
+    league_code, season_code, Date, HomeTeam, AwayTeam, FTR, BbMxH, BbMxD, BbMxA, BbAvH, BbAvD, BbAvA, B365H, B365D, B365A, PSH, PSD, PSA
   ) %>% 
   mutate_at(
     .cols = vars(BbMxH, BbMxD, BbMxA, BbAvH, BbAvD, BbAvA, B365H, B365D, B365A, PSH, PSD, PSA), 
@@ -76,9 +77,18 @@ football_data <- football_data %>%
 
 
 # bookmakers to use
-bookmaker_codes <- tibble(
+bookmakers <- tibble(
   bookmaker_name = c("Bet Brain - Max", "Bet Brain - Average", "Bet365", "Pinnacle Sports"), 
   bookmaker_code = c("BbMx", "BbAv", "B365", "PS")
+)
+
+# leagues
+leagues <- tibble(
+  league_code = c("D1", "E0", "E1", "E2", "E3", "F1", "I1", "SC0", "SP1"), 
+  league_name = c("German Bundesliga", "English Premier League", "English Championship", 
+                  "English League One", "English League Two", "French Ligue One", 
+                  "Italian Serie A", "Scottish Premiership", "Spanish La Liga" 
+  )
 )
 
 
@@ -88,6 +98,7 @@ bookmaker_codes <- tibble(
 # spread to seperate columns for H, D, A
 # add column for 'overround'
 # merge bookmaker_codes
+# merge league_codes
 # gather columns H, D, A again as 'odds_type'
 
 
@@ -112,7 +123,10 @@ football_data <- football_data %>%
     overround = 1/H + 1/D + 1/A
   ) %>% 
   left_join(
-    ., bookmaker_codes, by="bookmaker_code"
+    ., bookmakers, by="bookmaker_code"
+  ) %>% 
+  left_join(
+    ., leagues, by="league_code"
   ) %>% 
   gather(
     ., odds_type, original_odds, which(colnames(.) %in% c("H", "D", "A"))
@@ -120,10 +134,29 @@ football_data <- football_data %>%
 
 
 # rm no longer required items
-rm(bookmaker_codes, gather_columns)
+rm(bookmakers, leagues, gather_columns)
 
 
 ```
+
+
+As mentioned the data is from [www.football-data.co.uk](http://www.football-data.co.uk/) and I have applied the following filters.  
+
+* The leagues selected are: *`r str_c(unique(football_data$league_name), sep="", collapse=", ")`*
+* The seasons selected are: *`r str_c(paste0("20", unique(football_data$season_code)), sep="", collapse=", ")`*
+* The odds are from the following bookmakers: *`r str_c(unique(football_data$bookmaker_name), sep="", collapse=", ")`*
+* If any of the odds are missing then all the data for that specific game is removed from the dataset.
+* If any of the odds values are invalid (ie. odds that are less than 1), again, all the data for that specific game is removed.
+
+That leaves us with `r format(nrow(unique(football_data[,c("Date","HomeTeam","AwayTeam")])), nsmall=1, big.mark=",")` matches across 
+`r format(length(unique(football_data$bookmaker_name)), nsmall=1, big.mark=",")` different bookmakers; giving us 
+`r format( nrow(unique(football_data[,c("Date","HomeTeam","AwayTeam")]))*length(unique(football_data$bookmaker_name)), nsmall=1, big.mark=",")` 
+individual odds values.  
+
+
+***
+
+### Comparison
 
 
 
