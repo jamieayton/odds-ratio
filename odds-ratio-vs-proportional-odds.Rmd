@@ -196,6 +196,20 @@ football_data <- football_data %>%
     proportional_odds = original_odds * overround
   )
 
+```
+
+
+
+```{r RPS calculation, echo=FALSE}
+
+# RPS calculation
+football_data <- football_data %>% 
+  mutate(
+    original_RPS = (ifelse(odds_type == FTR, 1, 0) - 1/original_odds)^2, 
+    ratio_RPS = (ifelse(odds_type == FTR, 1, 0) - 1/ratio_odds)^2, 
+    proportional_RPS = (ifelse(odds_type == FTR, 1, 0) - 1/proportional_odds)^2
+  )
+
 
 
 ```
