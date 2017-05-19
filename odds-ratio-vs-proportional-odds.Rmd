@@ -159,7 +159,7 @@ three_way_market_solver <- function(odds_1, odds_2, odds_3, overround){
 
 
 # spread odds to give seperate columns for H,D,A
-# apply three_way_market_solver to find value 'c' such that overround=1
+# apply three_way_market_solver to find value 'c' such that overround = 1
 # use 'c' to define odds_ratio 'true' odds
 # rm no longer needed columns
 
@@ -180,6 +180,20 @@ football_data <- football_data %>%
   ) %>% 
   select(
     -one_of(c("c","original_prob", "ratio_prob"))
+  )
+
+
+
+```
+
+
+
+```{r add proportional odds, echo=FALSE}
+
+# add proportional odds
+football_data <- football_data %>% 
+  mutate(
+    proportional_odds = original_odds * overround
   )
 
 
