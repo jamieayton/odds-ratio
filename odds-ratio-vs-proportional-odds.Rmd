@@ -168,6 +168,17 @@ football_data <- football_data %>%
   ) %>% 
   mutate(
     c = pmap_dbl(list(.$H, .$D, .$A, rep(1, nrow(.))), three_way_market_solver)
+  ) %>% 
+  gather(
+    ., odds_type, original_odds, which(colnames(.) %in% c("H", "D", "A"))
+  ) %>% 
+  mutate(
+    original_prob = 1/original_odds, 
+    ratio_prob = c*original_prob/(1-original_prob+c*original_prob), 
+    ratio_odds = 1/ratio_prob
+  ) %>% 
+  select(
+    -one_of(c("c","original_prob", "ratio_prob"))
   )
 
 
