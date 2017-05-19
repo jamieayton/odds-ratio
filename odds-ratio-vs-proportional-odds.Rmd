@@ -156,8 +156,7 @@ individual odds values.
 
 ***
 
-### Comparison
-
+### RPS Comparison
 
 
 ```{r add odds ratio, echo=FALSE}
@@ -243,6 +242,21 @@ football_data <- football_data %>%
     proportional_RPS = (ifelse(odds_type == FTR, 1, 0) - 1/proportional_odds)^2
   )
 
+
+```
+
+
+
+```{r bookmakers comparison, echo=FALSE}
+
+# bookmakers comparison - kable output
+football_data %>% 
+  group_by(bookmaker_code) %>% 
+  summarise(
+    original_RPS = mean(original_RPS), 
+    ratio_RPS = mean(ratio_RPS), 
+    proportional_RPS = mean(proportional_RPS)
+  )
 
 
 ```
