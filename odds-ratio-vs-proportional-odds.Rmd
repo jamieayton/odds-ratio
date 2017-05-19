@@ -53,24 +53,32 @@ football_data <- read_csv("C:/R Projects/odds-ratio/football_data.csv")
 
 # filter for leagues & seasons
 # select columns which are needed
-# remove rows with NAs
+# make sure odds columns are numeric & check that odds values are real ie. > 1
+# remove NA rows
 
 football_data <- football_data %>% 
-  filter(season_code %in% c("09-10", "10-11", "11-12", "12-13", "13-14", "14-15", "15-16", "16-17")) %>% 
-  filter(league_code %in% c("D1", "E0", "E1", "E2", "E3", "F1", "I1", "SC0", "SP1")) %>% 
+  filter(
+    season_code %in% c("09-10", "10-11", "11-12", "12-13", "13-14", "14-15", "15-16", "16-17")
+  ) %>% 
+  filter(
+    league_code %in% c("D1", "E0", "E1", "E2", "E3", "F1", "I1", "SC0", "SP1")
+  ) %>% 
   select(
-    one_of(
-      c("Div", "Date", "HomeTeam", "AwayTeam", "FTR","BbMxH", "BbMxD", "BbMxA", "BbAvH", "BbAvD", "BbAvA", "B365H", "B365D", "B365A", "PSH", "PSD", "PSA")
-    )
+    Div, Date, HomeTeam, AwayTeam, FTR, BbMxH, BbMxD, BbMxA, BbAvH, BbAvD, BbAvA, B365H, B365D, B365A, PSH, PSD, PSA
+  ) %>% 
+  mutate_at(
+    .cols = vars(BbMxH, BbMxD, BbMxA, BbAvH, BbAvD, BbAvA, B365H, B365D, B365A, PSH, PSD, PSA), 
+    .funs = funs(ifelse(as.numeric(.) >= 1L, as.numeric(.), NA))
   ) %>% 
   na.omit()
+  
 
 
 
 # bookmakers to use
 bookmaker_codes <- tibble(
   bookmaker_name = c("Bet Brain - Max", "Bet Brain - Average", "Bet365", "Pinnacle Sports"), 
-  bookmaker_code = c("BbMx", "BbAv", "Bet365", "PS")
+  bookmaker_code = c("BbMx", "BbAv", "B365", "PS")
 )
 
 
@@ -98,7 +106,7 @@ football_data <- football_data %>%
     odds_value = as.numeric(odds_value)
   ) %>% 
   spread(
-    ., "odds_type", "odds_value"
+    ., odds_type, odds_value
   ) %>% 
   mutate(
     overround = 1/H + 1/D + 1/A
@@ -107,12 +115,64 @@ football_data <- football_data %>%
     ., bookmaker_codes, by="bookmaker_code"
   ) %>% 
   gather(
-    ., "odds_type","odds_value", which(colnames(.) %in% c("H", "D", "A"))
+    ., odds_type, original_odds, which(colnames(.) %in% c("H", "D", "A"))
   )
-  
-  
+
+
 # rm no longer required items
 rm(bookmaker_codes, gather_columns)
+
+
+```
+
+
+
+```{r add odds ratio, echo=FALSE}
+
+# odds ratio solver function
+
+three_way_market_solver <- function(odds_1, odds_2, odds_3, overround){
+  
+  # check inputs are all numeric & length == 1
+  stopifnot(all(is.numeric(odds_1), is.numeric(odds_2), is.numeric(odds_3), is.numeric(overround)))
+  stopifnot(all(length(odds_1) == 1, length(odds_2) == 1, length(odds_3) == 1, length(overround) == 1))
+  
+  # adjust odds to probabilities
+  p <- 1/odds_1
+  q <- 1/odds_2
+  r <- 1/odds_3
+  
+  # solver function: minimise 'x + y - v' to find c such that x + y = v
+  find_c <- function(c){
+    abs((c*p/(1-p+c*p)) + (c*q/(1-q+c*q)) + (c*r/(1-r+c*r)) - overround)
+  }
+  
+  # use optim to solve with lower bound to prevent -ve roots
+  optimised_solver <- optim(
+    par = c(1), fn = find_c, method = "Brent", lower = 1e-03, upper = 1e+03
+  )
+  
+  # output parameter from optim
+  optimised_solver$par[1]
+}
+
+
+
+# spread odds to give seperate columns for H,D,A
+# apply three_way_market_solver to find value 'c' such that overround=1
+# use 'c' to define 'true' odds
+
+football_data <- football_data %>% 
+  spread(
+    ., odds_type, original_odds
+  ) %>% 
+  mutate(
+    c = pmap_dbl(list(.$H, .$D, .$A, rep(1, nrow(.))), three_way_market_solver)
+  )
+
+
+
+
 
 
 ```
