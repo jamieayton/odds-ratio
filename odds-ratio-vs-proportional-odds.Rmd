@@ -234,24 +234,75 @@ football_data <- football_data %>%
 
 ```{r RPS calculation, echo=FALSE}
 
+# rps function
+rps <- function(odds_H, odds_D, odds_A, FTR){
+  
+  # components for H,D,A
+  rps_H <- (ifelse(FTR=="H", 1, 0) - 1/odds_H)^2
+  rps_D <- (ifelse(FTR=="D", 1, 0) - 1/odds_D)^2
+  rps_A <- (ifelse(FTR=="A", 1, 0) - 1/odds_A)^2
+  
+  # output rps
+  (1/(3-1))*(rps_H + rps_D + rps_A)
+}
+
+
+# seperate out all odds into seperate columns for RPS calculation
+football_data <- football_data %>% 
+  unite(
+    ., odds, one_of(c("original_odds", "ratio_odds", "proportional_odds")), sep=" - "
+  ) %>% 
+  spread(
+    odds_type, odds
+  ) %>% 
+  separate(
+    ., H, into=c("original_odds - H", "ratio_odds - H", "proportional_odds - H"), sep=" - "
+  ) %>% 
+  separate(
+    ., D, into=c("original_odds - D", "ratio_odds - D", "proportional_odds - D"), sep=" - "
+  ) %>% 
+  separate(
+    ., A, into=c("original_odds - A", "ratio_odds - A", "proportional_odds - A"), sep=" - "
+  ) %>% 
+  mutate_at(
+    .cols = vars(matches("original_odds|ratio_odds|proportional_odds")), 
+    .funs = funs(as.numeric(.))
+  )
+
+
 # RPS calculation
 football_data <- football_data %>% 
   mutate(
-    original_RPS = (ifelse(odds_type == FTR, 1, 0) - 1/original_odds)^2, 
-    ratio_RPS = (ifelse(odds_type == FTR, 1, 0) - 1/ratio_odds)^2, 
-    proportional_RPS = (ifelse(odds_type == FTR, 1, 0) - 1/proportional_odds)^2
+    original_RPS = pmap_dbl(
+      list(football_data$`original_odds - H`, football_data$`original_odds - D`, football_data$`original_odds - A`, football_data$FTR), 
+      .f=rps
+    )
+  ) %>% 
+  mutate(
+    ratio_RPS = pmap_dbl(
+      list(football_data$`ratio_odds - H`, football_data$`ratio_odds - D`, football_data$`ratio_odds - A`, football_data$FTR), 
+      .f=rps
+    )
+  ) %>% 
+  mutate(
+    proportional_RPS = pmap_dbl(
+      list(football_data$`proportional_odds - H`, football_data$`proportional_odds - D`, football_data$`proportional_odds - A`, football_data$FTR), 
+      .f=rps
+    )
   )
 
 
 ```
 
 
+##### Bookmaker's Summary
 
 ```{r bookmakers comparison, echo=FALSE}
 
+
 # bookmakers comparison - kable output
-football_data %>% 
-  group_by(bookmaker_code) %>% 
+bookmakers_summary <- football_data %>% 
+  group_by(bookmaker_name) %>% 
   summarise(
     original_RPS = mean(original_RPS), 
     ratio_RPS = mean(ratio_RPS), 
@@ -259,5 +310,85 @@ football_data %>%
   )
 
 
+# table output
+kable(
+  bookmakers_summary, 
+  col.names = c("Bookmaker", "Original Odds", "Ratio Odds", "Proportional Odds"), 
+  digits = 6, 
+  align = 'l', 
+  format = "markdown", 
+  caption = "RPS Summary by Bookmaker"
+)
+
+
+
+
 ```
+
+
+#### H Favourite
+
+```{r h favourite, echo=TRUE}
+
+
+# bookmakers comparison - kable output
+bookmakers_summary_H <- football_data %>% 
+  group_by(bookmaker_name) %>% 
+  filter(`original_odds - H` <= `original_odds - A`) %>% 
+  summarise(
+    original_RPS = mean(original_RPS), 
+    ratio_RPS = mean(ratio_RPS), 
+    proportional_RPS = mean(proportional_RPS)
+  )
+
+
+# table output
+kable(
+  bookmakers_summary_H, 
+  col.names = c("Bookmaker", "Original Odds", "Ratio Odds", "Proportional Odds"), 
+  digits = 6, 
+  align = 'l', 
+  format = "markdown", 
+  caption = "RPS Summary by Bookmaker"
+)
+
+
+
+```
+
+
+
+#### A Favourite
+
+```{r A favourite, echo=TRUE}
+
+
+# bookmakers comparison - kable output
+bookmakers_summary_H <- football_data %>% 
+  group_by(bookmaker_name) %>% 
+  filter(`original_odds - H` >= `original_odds - A`) %>% 
+  summarise(
+    original_RPS = mean(original_RPS), 
+    ratio_RPS = mean(ratio_RPS), 
+    proportional_RPS = mean(proportional_RPS)
+  )
+
+
+# table output
+kable(
+  bookmakers_summary_H, 
+  col.names = c("Bookmaker", "Original Odds", "Ratio Odds", "Proportional Odds"), 
+  digits = 6, 
+  align = 'l', 
+  format = "markdown", 
+  caption = "RPS Summary by Bookmaker"
+)
+
+
+
+```
+
+
+
+
 
