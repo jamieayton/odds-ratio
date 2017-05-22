@@ -20,7 +20,7 @@ library('knitr')
 ### Summary
 
 I have previously shown how to calculate the [Odds Ratio](http://htmlpreview.github.io/?https://github.com/jamieayton/odds-ratio/blob/master/odds-ratio.html) and how to estimate the true odds (and thus the true probabilities) from given Bookmakers odds.
-Lets compare the 'Odds Ratio' method to another method of estimating the true odds - 'Proportional Odds.  
+Lets compare the 'Odds Ratio' method to another method of estimating the true odds - 'Proportional Odds'.  
 
 We will compare the two methods by calculating the implied true probabilities for each method and then calculating Ranked Probability Score for real odds for the 1x2 market of a selection of football matches. The odds data is from [www.football-data.co.uk](http://www.football-data.co.uk/).  
 
@@ -295,7 +295,9 @@ football_data <- football_data %>%
 ```
 
 
-##### Bookmaker's Summary
+
+
+Below is a table comparing the calculated RPS values (lower is better) across the differents Odds values for the  various different bookmakers.
 
 ```{r bookmakers comparison, echo=FALSE}
 
@@ -321,9 +323,42 @@ kable(
 )
 
 
+```
+
+We see that in general the RPS value for the 'Ratio Odds' is less than the RPS value for the 'Proportional Odds', but curiously this is not true for 'Bet Brain - Max'.
+We also see that the bookmaker 'Pinnacle Sports' has the lowest RPS value for each of the different 'Odds' values.
+
+Let's focus on the 'Pinnacle Sports' odds and see why the RPS value is lower for the Odds Ratio method.
+
+
+```{r pinnacle odds geom_plot, echo=FALSE}
+
+pinnacle <- football_data %>% 
+  filter(
+    bookmaker_code == "PS"
+  )
+
+
+pinnacle %>% 
+  select(`original_odds - H`, ratio_RPS, proportional_RPS) %>% 
+  gather(., odds_type, rps_value, which(colnames(.) %in% c("ratio_RPS", "proportional_RPS"))) %>% 
+  ggplot(., aes(`original_odds - H`, rps_value)) + 
+  geom_point(aes(colour = odds_type))
+
+# above plot - points too close generally - maybe look at subsets?
+
+
+# plot boxplot to show too close?
+
+# fit linear model proportional vs ratio - then look at residuals
+
+
+
 
 
 ```
+
+
 
 
 #### H Favourite
