@@ -338,21 +338,66 @@ pinnacle <- football_data %>%
     bookmaker_code == "PS"
   )
 
-
+# odds plot - only `A`
 pinnacle %>% 
+  select(`original_odds - A`, `proportional_odds - A`, `ratio_odds - A`) %>% 
+  gather(., odds_type, odds_value, which(colnames(.) %in% c("proportional_odds - A", "ratio_odds - A"))) %>% 
+  ggplot(., aes(`original_odds - A`, odds_value)) + 
+  geom_point(aes(colour = odds_type), alpha=0.1) + 
+  scale_x_log10() + 
+  scale_y_log10()
+
+# rps plot - points too close generally - maybe look at subsets?
+pinnacle %>% 
+  filter(`original_odds - H` < `original_odds - A`) %>% 
   select(`original_odds - H`, ratio_RPS, proportional_RPS) %>% 
   gather(., odds_type, rps_value, which(colnames(.) %in% c("ratio_RPS", "proportional_RPS"))) %>% 
   ggplot(., aes(`original_odds - H`, rps_value)) + 
   geom_point(aes(colour = odds_type))
 
-# above plot - points too close generally - maybe look at subsets?
-
-
 # plot boxplot to show too close?
+pinnacle %>% 
+  select(ratio_RPS, proportional_RPS) %>% 
+  gather(., odds_type, rps_value, which(colnames(.) %in% c("ratio_RPS", "proportional_RPS"))) %>% 
+  ggplot(., aes(odds_type, rps_value)) + 
+  geom_boxplot(aes(colour=odds_type))
 
 # fit linear model proportional vs ratio - then look at residuals
+linear_fit <- lm(ratio_RPS ~ proportional_RPS, data=pinnacle)
+
+test <- broom::augment(linear_fit)
+
+ggplot(pinnacle, aes(ratio_RPS, proportional_RPS)) + geom_point()
 
 
+# modelr - predictions & actual points
+linear_fit <- lm(ratio_RPS ~ proportional_RPS, data=pinnacle)
+
+grid <- pinnacle %>% 
+  modelr::data_grid(proportional_RPS) %>% 
+  modelr::add_predictions(linear_fit)
+
+ggplot(pinnacle, aes(x = proportional_RPS)) +
+  geom_point(aes(y = ratio_RPS)) +
+  geom_line(aes(y = pred), data = grid, colour = "red", size = 1)
+
+
+# modelr - residuals
+linear_fit <- lm(ratio_RPS ~ proportional_RPS, data=pinnacle)
+
+grid <- pinnacle %>% 
+  modelr::add_residuals(linear_fit)
+
+ggplot(grid, aes(`original_odds - A`, resid)) + 
+  modelr::geom_ref_line(h = 0) +
+  geom_smooth()
+
+grid %>% 
+  gather(., original_type, original_value, matches("original_odds")) %>% 
+  ggplot(., aes(original_value, resid)) + 
+  modelr::geom_ref_line(h = 0) + 
+  geom_smooth(aes(colour = original_type)) + 
+  scale_x_log10()
 
 
 
