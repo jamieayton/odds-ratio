@@ -171,15 +171,26 @@ different bookmakers; giving us `r format(n_odds, nsmall=1, big.mark=",")` indiv
 ### RPS Comparison
 
 
+```{r add proportional odds, echo=FALSE}
+
+# add proportional odds
+proportional_odds <- football_data %>% 
+  mutate(
+    proportional_odds = original_odds * overround
+  )
+
+```
+
+
 ```{r add odds ratio, echo=FALSE}
 
 # odds ratio solver function
 
-three_way_market_solver <- function(odds_1, odds_2, odds_3, overround){
+odds_ratio_solver <- function(odds_1, odds_2, odds_3, overround){
   
-  # check inputs are all numeric & length == 1
-  stopifnot(all(is.numeric(odds_1), is.numeric(odds_2), is.numeric(odds_3), is.numeric(overround)))
+  # check inputs are all numeric, are finite & length == 1
   stopifnot(all(length(odds_1) == 1, length(odds_2) == 1, length(odds_3) == 1, length(overround) == 1))
+  stopifnot(all(is.finite(odds_1), is.finite(odds_2), is.finite(odds_3), is.finite(overround)))
   
   # adjust odds to probabilities
   p <- 1/odds_1
@@ -203,16 +214,16 @@ three_way_market_solver <- function(odds_1, odds_2, odds_3, overround){
 
 
 # spread odds to give seperate columns for H,D,A
-# apply three_way_market_solver to find value 'c' such that overround = 1
+# apply odds_ratio_solver to find value 'c' such that overround = 1
 # use 'c' to define odds_ratio 'true' odds
 # rm no longer needed columns
 
-football_data <- football_data %>% 
+odds_ratio <- football_data %>% 
   spread(
     ., odds_type, original_odds
   ) %>% 
   mutate(
-    c = pmap_dbl(list(.$H, .$D, .$A, rep(1, nrow(.))), three_way_market_solver)
+    c = pmap_dbl(list(.$H, .$D, .$A, rep(1, nrow(.))), odds_ratio_solver)
   ) %>% 
   gather(
     ., odds_type, original_odds, which(colnames(.) %in% c("H", "D", "A"))
@@ -232,12 +243,61 @@ football_data <- football_data %>%
 
 
 
-```{r add proportional odds, echo=FALSE}
+```{r add power odds, echo=FALSE}
 
-# add proportional odds
-football_data <- football_data %>% 
+
+# solver function
+power_odds_solver <- function(odds_1, odds_2, odds_3){
+  
+  # check inputs are all numeric & length == 1
+  stopifnot(all(is.numeric(odds_1), is.numeric(odds_2), is.numeric(odds_3)))
+  stopifnot(all(length(odds_1) == 1, length(odds_2) == 1, length(odds_3) == 1))
+  
+  # adjust odds to probabilities
+  p <- 1/odds_1
+  q <- 1/odds_2
+  r <- 1/odds_3
+  
+  # find lambda function
+  find_lambda <- function(lambda){
+      abs(p^(lambda) + q^(lambda) + r^(lambda) - 1)
+  }
+  
+  # parameter range
+  min_par <- log(1/3)/log(min(p,q,r))
+  max_par <- log(1/3)/log(max(p,q,r))
+  
+  # use optim to solve with lower bound to prevent -ve roots
+  optimised_solver <- optimize(find_lambda, c(min_par, max_par), tol = 0.00001)
+  
+  # output parameter from optim
+  optimised_solver$minimum[1]
+}
+
+
+# spread odds to give seperate columns for H,D,A
+# apply power_odds_solver to find value 'lambda' such that overround = 1
+# use 'lambda' to define power odds 'true' odds
+# rm no longer needed columns
+
+power_odds <- football_data %>% 
+  spread(
+    ., odds_type, original_odds
+  ) %>% 
   mutate(
-    proportional_odds = original_odds * overround
+    lambda = pmap_dbl(list(.$H, .$D, .$A), power_odds_solver), 
+    precision = abs((1/H)^lambda + (1/D)^lambda + (1/A)^lambda - 1)
+  ) %>% 
+  gather(
+    ., odds_type, original_odds, which(colnames(.) %in% c("H", "D", "A"))
+  ) %>% 
+  mutate(
+    original_prob = 1/original_odds, 
+    power_prob = original_prob^(lambda), 
+    power_odds = 1/power_prob
+  ) %>% 
+  select(
+    -one_of(c("lambda","original_prob", "power_prob"))
   )
 
 ```
