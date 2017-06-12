@@ -42,7 +42,7 @@ For a three-way market, given bookmakers odds `1/p, 1/q, 1/r` with corresponding
     We defined the Odds Ratio of `x` & `p` to be $OR(x,p)$ and we find `x, y, z` such that $OR(x,p) = OR(y,q) = OR(z,r)$.
 
 * Power Odds:  
-    Define $(x, y, z) := (\ p^{-\lamba},\ q^{-\lamba},\ r^{-\lamba} \ )$, where $\lamba \in \real$ is chosen such that $x + y + z = 1$.
+    Define $(x, y, z) := (\ p^{-\lambda},\ q^{-\lambda},\ r^{-\lambda} \ )$, where $\lambda \in \mathbb{R}$ is chosen such that $x + y + z = 1$.
 
 
 ***
@@ -138,22 +138,32 @@ football_data <- football_data %>%
 # rm no longer required items
 rm(bookmakers, leagues, gather_columns)
 
+```
+
+
+
+```{r number of observations, echo=FALSE}
+
+# number of observations
+n_matches <- football_data %>% select(Date, HomeTeam, AwayTeam) %>% unique(.) %>% summarise(count=n()) %>% as.integer()
+n_bookmakers <- football_data %>% select(bookmaker_name) %>% unique(.) %>% summarise(count=n()) %>% as.integer()
+n_odds <- n_matches*n_bookmakers
+
 
 ```
 
 
 As mentioned the data is from [www.football-data.co.uk](http://www.football-data.co.uk/) and I have applied the following filters.  
 
-* The leagues selected are: *`r str_c(unique(football_data$league_name), sep="", collapse=", ")`*
-* The seasons selected are: *`r str_c(paste0("20", unique(football_data$season_code)), sep="", collapse=", ")`*
-* The odds are from the following bookmakers: *`r str_c(unique(football_data$bookmaker_name), sep="", collapse=", ")`*
+* The leagues selected are: *`r str_c(unique(football_data$league_name), sep="", collapse=", ")`*  
+* The seasons selected are: *`r str_c(paste0("20", unique(football_data$season_code)), sep="", collapse=", ")`*  
+* The odds are from the following bookmakers: *`r str_c(unique(football_data$bookmaker_name), sep="", collapse=", ")`*  
 * If any of the odds are missing then all the data for that specific game is removed from the dataset.
 * If any of the odds values are invalid (ie. odds that are less than 1), again, all the data for that specific game is removed.
 
-That leaves us with `r format(nrow(unique(football_data[,c("Date","HomeTeam","AwayTeam")])), nsmall=1, big.mark=",")` matches across 
-`r format(length(unique(football_data$bookmaker_name)), nsmall=1, big.mark=",")` different bookmakers; giving us 
-`r format( nrow(unique(football_data[,c("Date","HomeTeam","AwayTeam")]))*length(unique(football_data$bookmaker_name)), nsmall=1, big.mark=",")` 
-individual odds values.  
+
+That leaves us with `r format(n_matches, nsmall=1, big.mark=",")` matches across `r format(n_bookmakers, nsmall=1, big.mark=",")` 
+different bookmakers; giving us `r format(n_odds, nsmall=1, big.mark=",")` individual odds values.  
 
 
 ***
