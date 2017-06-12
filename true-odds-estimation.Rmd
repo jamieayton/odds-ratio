@@ -1,7 +1,8 @@
 ---
-title: "Odds Ratio vs Proportional odds"
+title: "True Odds Estimation"
+subtitle: "A Comparison between Proportional Odds, the Odds Ratio' and the Power Method"
 author: "Jamie Ayton"
-date: "18 May 2017"
+date: "`r format(Sys.time(), '%d %B %Y')`
 output:
   html_document:
     keep_md: true
@@ -12,6 +13,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 library('tidyverse')
 library('stringr')
+library('ggvis')
 library('knitr')
 
 ```
@@ -71,9 +73,7 @@ football_data <- football_data %>%
     .cols = vars(BbMxH, BbMxD, BbMxA, BbAvH, BbAvD, BbAvA, B365H, B365D, B365A, PSH, PSD, PSA), 
     .funs = funs(ifelse(as.numeric(.) >= 1L, as.numeric(.), NA))
   ) %>% 
-  na.omit()
-  
-
+  drop_na()
 
 
 # bookmakers to use
@@ -100,7 +100,6 @@ leagues <- tibble(
 # merge bookmaker_codes
 # merge league_codes
 # gather columns H, D, A again as 'odds_type'
-
 
 gather_columns <- c("BbMxH", "BbMxD", "BbMxA", "BbAvH", "BbAvD", "BbAvA", "B365H", "B365D", "B365A", "PSH", "PSD", "PSA")
 gather_columns <- which(colnames(football_data) %in%  gather_columns)
