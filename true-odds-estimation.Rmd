@@ -1,6 +1,6 @@
 ---
 title: "True Odds Estimation"
-subtitle: "A Comparison between Proportional Odds, the Odds Ratio' and the Power Method"
+subtitle: "A Comparison between 'Proportional Odds', the 'Odds Ratio' and the 'Power Method'"
 author: "Jamie Ayton"
 date: "`r format(Sys.time(), '%d %B %Y')`
 output:
@@ -22,24 +22,27 @@ library('knitr')
 ### Summary
 
 I have previously shown how to calculate the [Odds Ratio](http://htmlpreview.github.io/?https://github.com/jamieayton/odds-ratio/blob/master/odds-ratio.html) and how to estimate the true odds (and thus the true probabilities) from given Bookmakers odds.
-Lets compare the 'Odds Ratio' method to another method of estimating the true odds - 'Proportional Odds'.  
+Lets compare the 'Odds Ratio' method to a couple of other methods of estimating the true odds - 'Proportional Odds' & the 'Power Method'.  
 
-We will compare the two methods by calculating the implied true probabilities for each method and then calculating Ranked Probability Score for real odds for the 1x2 market of a selection of football matches. The odds data is from [www.football-data.co.uk](http://www.football-data.co.uk/).  
+We will compare the three methods by calculating the implied true probabilities for each method and then calculating Ranked Probability Score for real bookmakers odds for the 1x2 market of a selection of football matches. The odds data is from [www.football-data.co.uk](http://www.football-data.co.uk/).  
 
 ***
 
 
 ### Definitions
 
-First lets re-cap how we define the 'Odds Ratio' and define 'Proportional Odds'.
+First lets fully define the different methods.  
 
 For a three-way market, given bookmakers odds `1/p, 1/q, 1/r` with corresponding probabilities `p, q, r`; we wish to find true odds `1/x, 1/y, 1/z` with corresponding probabilities `x, y, z` such that $x + y + z = 1$.  
+
+* Proportional Odds:  
+    Let $v = p + q + r$, then we define $(x, y, z) := (\ p/v,\ q/v,\ r/v \ )$.
 
 * Odds Ratio:  
     We defined the Odds Ratio of `x` & `p` to be $OR(x,p)$ and we find `x, y, z` such that $OR(x,p) = OR(y,q) = OR(z,r)$.
 
-* Proportional Odds:  
-    Let $v = p + q + r$, then we define $(x, y, z) := (\ p/v,\ q/v,\ r/v \ )$. 
+* Power Odds:  
+    Define $(x, y, z) := (\ p^{-\lamba},\ q^{-\lamba},\ r^{-\lamba} \ )$, where $\lamba \in \real$ is chosen such that $x + y + z = 1$.
 
 
 ***
