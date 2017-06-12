@@ -2,7 +2,7 @@
 title: "True Odds Estimation"
 subtitle: "A Comparison between 'Proportional Odds', the 'Odds Ratio' and the 'Power Method'"
 author: "Jamie Ayton"
-date: "`r format(Sys.time(), '%d %B %Y')`
+date: "`r format(Sys.time(), '%d %B %Y')`"
 output:
   html_document:
     keep_md: true
