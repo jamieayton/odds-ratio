@@ -13,8 +13,10 @@ knitr::opts_chunk$set(echo = TRUE)
 
 library('tidyverse')
 library('stringr')
-library('ggvis')
+library('ggplot2')
 library('knitr')
+library('grid')
+library('gridExtra')  # for side-by-side plots
 
 ```
 
@@ -76,7 +78,10 @@ football_data <- football_data %>%
     .cols = vars(BbMxH, BbMxD, BbMxA, BbAvH, BbAvD, BbAvA, B365H, B365D, B365A, PSH, PSD, PSA), 
     .funs = funs(ifelse(as.numeric(.) >= 1L, as.numeric(.), NA))
   ) %>% 
-  drop_na()
+  drop_na() %>% 
+  mutate(
+    match_id = seq(from=1, to=nrow(.), by=1)
+  )
 
 
 # bookmakers to use
@@ -175,6 +180,9 @@ different bookmakers; giving us `r format(n_odds, nsmall=1, big.mark=",")` indiv
 
 # add proportional odds
 proportional_odds <- football_data %>% 
+  select(
+    match_id, bookmaker_code, odds_type, original_odds, overround
+  ) %>% 
   mutate(
     proportional_odds = original_odds * overround
   )
@@ -219,6 +227,9 @@ odds_ratio_solver <- function(odds_1, odds_2, odds_3, overround){
 # rm no longer needed columns
 
 odds_ratio <- football_data %>% 
+  select(
+    match_id, bookmaker_code, odds_type, original_odds, overround
+  ) %>% 
   spread(
     ., odds_type, original_odds
   ) %>% 
@@ -281,6 +292,9 @@ power_odds_solver <- function(odds_1, odds_2, odds_3){
 # rm no longer needed columns
 
 power_odds <- football_data %>% 
+  select(
+    match_id, bookmaker_code, odds_type, original_odds, overround
+  ) %>% 
   spread(
     ., odds_type, original_odds
   ) %>% 
@@ -297,71 +311,40 @@ power_odds <- football_data %>%
     power_odds = 1/power_prob
   ) %>% 
   select(
-    -one_of(c("lambda","original_prob", "power_prob"))
+    -one_of(c("lambda", "precision", "original_prob", "power_prob"))
   )
+
 
 ```
 
 
+```{r combine odds estimates, echo=FALSE}
 
-```{r RPS calculation, echo=FALSE}
-
-# rps function
-rps <- function(odds_H, odds_D, odds_A, FTR){
-  
-  # components for H,D,A
-  rps_H <- (ifelse(FTR=="H", 1, 0) - 1/odds_H)^2
-  rps_D <- (ifelse(FTR=="D", 1, 0) - 1/odds_D)^2
-  rps_A <- (ifelse(FTR=="A", 1, 0) - 1/odds_A)^2
-  
-  # output rps
-  (1/(3-1))*(rps_H + rps_D + rps_A)
-}
-
-
-# seperate out all odds into seperate columns for RPS calculation
-football_data <- football_data %>% 
-  unite(
-    ., odds, one_of(c("original_odds", "ratio_odds", "proportional_odds")), sep=" - "
+# combine odds, then gather odds method & value
+odds_comparison <- reduce(
+    list(football_data, proportional_odds, odds_ratio, power_odds), 
+    left_join, 
+    by=c("match_id", "bookmaker_code", "odds_type", "original_odds", "overround")
   ) %>% 
-  spread(
-    odds_type, odds
-  ) %>% 
-  separate(
-    ., H, into=c("original_odds - H", "ratio_odds - H", "proportional_odds - H"), sep=" - "
-  ) %>% 
-  separate(
-    ., D, into=c("original_odds - D", "ratio_odds - D", "proportional_odds - D"), sep=" - "
-  ) %>% 
-  separate(
-    ., A, into=c("original_odds - A", "ratio_odds - A", "proportional_odds - A"), sep=" - "
-  ) %>% 
-  mutate_at(
-    .cols = vars(matches("original_odds|ratio_odds|proportional_odds")), 
-    .funs = funs(as.numeric(.))
+  gather(
+    ., odds_method, odds_value, which(colnames(.) %in% c("original_odds", "proportional_odds", "ratio_odds", "power_odds"))
   )
 
+rm(proportional_odds, odds_ratio,power_odds)
 
-# RPS calculation
-football_data <- football_data %>% 
-  mutate(
-    original_RPS = pmap_dbl(
-      list(football_data$`original_odds - H`, football_data$`original_odds - D`, football_data$`original_odds - A`, football_data$FTR), 
-      .f=rps
-    )
-  ) %>% 
-  mutate(
-    ratio_RPS = pmap_dbl(
-      list(football_data$`ratio_odds - H`, football_data$`ratio_odds - D`, football_data$`ratio_odds - A`, football_data$FTR), 
-      .f=rps
-    )
-  ) %>% 
-  mutate(
-    proportional_RPS = pmap_dbl(
-      list(football_data$`proportional_odds - H`, football_data$`proportional_odds - D`, football_data$`proportional_odds - A`, football_data$FTR), 
-      .f=rps
-    )
-  )
+
+```
+
+
+```{r rps calculation, echo=FALSE}
+
+# spread odds_type so that H, D & A odds are in individual cols
+# calculate RPS
+
+rps_comparison <- odds_comparison %>% 
+  spread(., odds_type, odds_value) %>% 
+  mutate(rps = 0.5*((ifelse(FTR=="H", 1, 0) - 1/H)^2 + (ifelse(FTR=="D", 1, 0) - 1/D)^2 + (ifelse(FTR=="A", 1, 0) - 1/A)^2))
+
 
 
 ```
@@ -369,108 +352,336 @@ football_data <- football_data %>%
 
 
 
-Below is a table comparing the calculated RPS values (lower is better) across the differents Odds values for the  various different bookmakers.
+
+Below is a table comparing the calculated RPS values (lower is better) across the differents true odds estimates for the  various different bookmakers.
 
 ```{r bookmakers comparison, echo=FALSE}
 
+# group by odds_method & bookmakers
+# summarize rps by groupings (incl count to ensure constant across the board)
+# spread to give odds methods as individual cols of rps values
+# re-order cols
 
 # bookmakers comparison - kable output
-bookmakers_summary <- football_data %>% 
-  group_by(bookmaker_name) %>% 
+bookmakers_summary <- rps_comparison %>% 
+  bind_rows(., rps_comparison %>% mutate(bookmaker_name = c("Total"))) %>% 
+  group_by(odds_method, bookmaker_name) %>% 
   summarise(
-    original_RPS = mean(original_RPS), 
-    ratio_RPS = mean(ratio_RPS), 
-    proportional_RPS = mean(proportional_RPS)
-  )
+    count = n(), 
+    overround = mean(overround), 
+    rps = mean(rps)
+  ) %>% 
+  spread(
+    odds_method, rps
+  ) %>% 
+  select(bookmaker_name, count, overround, original_odds, proportional_odds, ratio_odds, power_odds)
+
 
 
 # table output
 kable(
   bookmakers_summary, 
-  col.names = c("Bookmaker", "Original Odds", "Ratio Odds", "Proportional Odds"), 
-  digits = 6, 
+  col.names = c("Bookmaker", "Matches", "Overround", "Original Odds", "Proportional Odds", "Ratio Odds", "Power Odds"), 
+  digits = c(0,6,3,6,6,6,6), 
   align = 'l', 
   format = "markdown", 
-  caption = "RPS Summary by Bookmaker"
+  caption = "RPS Summary by Bookmaker & Odds Estimation Method"
 )
 
 
 ```
 
-We see that in general the RPS value for the 'Ratio Odds' is less than the RPS value for the 'Proportional Odds', but curiously this is not true for 'Bet Brain - Max'.
-We also see that the bookmaker 'Pinnacle Sports' has the lowest RPS value for each of the different 'Odds' values.
+We see that in general the RPS value is lowest for the 'Power Odds', then 'Ratio Odds', 'Proportional Odds' and finally the 'Original Odds' have the highest RPS values. This means that in general that the 'Power' method produces odds which are closest to the True Odds of all the methods.  
+Curiously this is not true for the bookmaker 'Bet Brain - Max', perhaps this is due to the very low overround.  
+We also note that the bookmaker 'Pinnacle Sports' consistently has the lowest RPS regardless of the odds method.  
 
-Let's focus on the 'Pinnacle Sports' odds and see why the RPS value is lower for the Odds Ratio method.
+
+Let's focus on the 'Pinnacle Sports' odds and try to look at the different odds methods in more detail.  
 
 
-```{r pinnacle odds geom_plot, echo=FALSE}
+***
 
-pinnacle <- football_data %>% 
-  filter(
-    bookmaker_code == "PS"
+
+
+### Pinnacle Sports Odds
+
+
+First lets visually compare the odds to the original odds. 
+
+  
+#### Odds Comparison
+
+```{r plot - odds & probs comparison, echo = FALSE, message = FALSE, fig.width = 10, fig.height = 5, fig.show='hold', fig.align='center'}
+
+# plot original odds vs new odds for each method
+plot_data <- odds_comparison %>% 
+  filter(bookmaker_code == "PS") %>% 
+  select(match_id, odds_type, odds_method, odds_value) %>% 
+  spread(odds_method, odds_value) %>% 
+  gather(odds_method, odds_value, which(colnames(.) %in% c("proportional_odds", "ratio_odds", "power_odds")))
+
+
+# smooth line plot - shows variation at tail for large odds values, but doesn't show differences at small odds values
+plot_odds <- plot_data %>% 
+  ggplot(aes(x = original_odds, y = odds_value, color = odds_method)) + 
+  geom_smooth() + 
+  geom_abline(slope = 1, intercept = 0, lty = 2) + 
+  coord_cartesian(xlim = c(1, 50), ylim = c(1, 50)) + 
+  scale_colour_discrete(
+    name = "Odds Method",
+    breaks = c("power_odds", "proportional_odds", "ratio_odds"),
+    labels = c("Power Odds", "Proportional Odds", "Ratio Odds")
+  ) + 
+  theme_classic() + 
+  theme(legend.justification=c(1,0), legend.position=c(1,0)) + 
+  labs(x = "Original Odds \n Fig 1.1", y = "Estimated True Odds") + 
+  theme(plot.title = element_text(hjust = 0.5))
+
+# smooth line plot - probability scale
+plot_probs <- plot_data %>% 
+  ggplot(aes(x = 1/original_odds, y = 1/odds_value, color = odds_method)) + 
+  geom_smooth() + 
+  geom_abline(slope = 1, intercept = 0, lty = 2) + 
+  coord_cartesian(xlim = c(0, 1), ylim = c(0, 1)) + 
+  scale_colour_discrete(
+    name = "Odds Method",
+    breaks = c("power_odds", "proportional_odds", "ratio_odds"),
+    labels = c("Power Odds", "Proportional Odds", "Ratio Odds")
+  ) + 
+    theme_classic() + 
+  theme(legend.justification=c(1,0), legend.position=c(1,0)) + 
+  labs(x = "Original Probability \n Fig 1.2", y = "Estimated True Probability")
+
+
+grid.arrange(plot_odds, nullGrob(), plot_probs,  top = textGrob("A Comparison of the Different Odds Methods"), widths=c(0.475, 0.05, 0.475))
+
+rm(plot_odds, plot_probs)
+
+
+```
+
+
+* Fig 1.1 : 
+    + For large odds values the differences between the different methods & the $y = x$ dotted line becomes more apparent. We see that the 'Estimated Odds' are larger however the 'Ratio Odds' & 'Power Odds' diverge away above the dotted line.
+    + For small odds values it is very hard to distinguish the methods from the 'Original Odds' and from each other. 
+    + The majority of the data falls within the 'small odds values' range - it is clear that we are not going to learn anything from plotting 'Odds vs Odds'.
+* Fig 1.2 : 
+    + Converting to a 'Probability vs Probability' plot is actually worse than the 'Odds vs Odds' plot! This time we can't see if there are any differences at all. We will need to come up with another way to plot the data.  
+  
+
+&nbsp;
+
+
+Since Fig 1.1 shows a general increase for large odds value - lets try plotting the change in the value of the odds in the form of a scalar value, where the scalar multiple $\lambda$ is such that $\text{Estimated True Odds} = \lambda * \text{Original Odds}$.  
+
+&nbsp;
+
+```{r plot - odds & probs scalar increase , echo = FALSE, message = FALSE, fig.width = 10, fig.height = 5, fig.show='hold', fig.align='center'}
+
+
+# add differences to plot data
+plot_data <- plot_data %>% 
+  mutate(odds_scalar_multiple = odds_value/original_odds) %>% 
+  mutate(probs_scalar_multiple = (1/odds_value)/(1/original_odds))
+
+
+# odds plot
+plot_odds <- plot_data %>% 
+  ggplot(aes(original_odds, odds_scalar_multiple, color = odds_method)) + 
+  geom_smooth() + 
+  geom_hline(yintercept = 1, lty = 2) + 
+  coord_cartesian(xlim = c(0, 10), ylim = c(1, 1.1)) + 
+  scale_colour_discrete(
+    name = "Odds Method",
+    breaks = c("power_odds", "proportional_odds", "ratio_odds"),
+    labels = c("Power Odds", "Proportional Odds", "Ratio Odds")
+  ) + 
+  theme_classic() + 
+  theme(legend.justification = c(0.2, 0.8), legend.position = c(0.2, 0.8)) + 
+  labs(x = "Original Odds \n Fig 1.3", y = "Scalar Multiple (Odds)")
+
+# probs plot
+plot_probs <- plot_data %>% 
+  ggplot(aes(1/original_odds, probs_scalar_multiple, color = odds_method)) + 
+  geom_smooth() + 
+  geom_hline(yintercept = 1, lty = 2) + 
+  coord_cartesian(xlim = c(1, 0)) + 
+  scale_colour_discrete(
+    name = "Odds Method",
+    breaks = c("power_odds", "proportional_odds", "ratio_odds"),
+    labels = c("Power Odds", "Proportional Odds", "Ratio Odds")
+  ) + 
+  theme_classic() + 
+  theme(legend.justification = c(0.8, 0.2), legend.position = c(0.8, 0.2)) + 
+  labs(x = "Original Probability \n Fig 1.4", y = "Scalar Multiple (Probability)")
+
+
+grid.arrange(plot_odds, nullGrob(), plot_probs,  top = textGrob("A Comparison of the Different Odds Methods"), widths=c(0.475, 0.05, 0.475))
+
+rm(plot_odds, plot_probs)
+
+```
+
+* Fig 1.3: Odds Plot
+    + The fitted curves for the different methods are above the $y = 1$ dotted line. So the True Odds are greater than the Original Odds across the whole range.
+    + We see that the scalar increase for the 'Proportional Odds' method is quite uniform across the whole range. So this method increases the 'Original Odds' by the same scalar amount across the whole odds range.
+    + The Power Odds & Ratio Odds have a linear trend between the Original Odds value and the scalar multiple - so as the odds value increases the scalar multiple also increases. 
+    + We have an intersection point at Original Odds of ~ 3.0.  
+      Above this point the 'Power Odds' method produces the largest True Odds values and the 'Proportional Odds' method produces the smallest True Odds values.  
+      Below this point the 'Power Odds' method produces the smallest True Odds values and the 'Proportional Odds' produces the largest True Odds values.  
+
+* Fig 1.4: Probability Plot
+    + This plot just shows the same as the Odds plot, however since probabilities are the inverse of the odds values our whole plot is inversed, including the scalar multiples.  
+
+
+```{r plot - odds scalar increase facet by odds_type, include = FALSE, fig.width = 10, fig.height = 5, fig.show='hold', fig.align='center'}
+
+# odds plot ~ facetted by odds_type
+plot_data %>% 
+  ggplot(aes(original_odds, odds_scalar_multiple, color = odds_method)) + 
+  geom_smooth() + 
+  geom_hline(yintercept = 1, lty = 2) + 
+  facet_wrap(~odds_type) + 
+  coord_cartesian(xlim = c(0, 5), ylim = c(1, 1.1)) + 
+  scale_colour_discrete(
+    name = "Odds Method",
+    breaks = c("power_odds", "proportional_odds", "ratio_odds"),
+    labels = c("Power Odds", "Proportional Odds", "Ratio Odds")
+  ) + 
+  theme_classic() + 
+  theme(legend.justification = c(0.1, 0.9), legend.position = c(0.1, 0.9)) + 
+  labs(x = "Original Odds \n Fig 1.3", y = "Scalar Multiple")
+
+# nothing 'new' here - same trend as when all odds_types were grouped together
+
+```
+
+
+
+&nbsp;
+
+
+So now we understand how the various methods differ in producing 'True Odds' across the range of our 'Original Odds', but how does this link to the RPS values which showed that the 'Power Odds' method was the most accurate.  
+
+Lets visualize the RPS values as a comparison to the Original Odds values.  
+
+&nbsp;
+
+&nbsp;
+
+#### RPS Comparison
+
+If we try to plot the RPS values we will run into the same situation that we did with visualizing the odds values - the values will be too close to distinguish the different odds methods. So similar to the odds plots we will need to plot a variable which represents the change in the RPS value.  
+
+Lets define the RPS Scalar $\lambda$ to be such that $\text{RPS}_{\text{True Odds}} = \lambda * \text{RPS}_{\text{Original Odds}}$. Then if $\lambda < 1$ this means that the 'True Odds' produced are more accurate than the 'Original odds', and conversely if $\lambda > 1$ then the 'Original odds' are more accurate.  
+
+  
+
+```{r plot - rps comparison, echo = FALSE, message = FALSE, fig.width = 10, fig.height = 5, fig.show='hold', fig.align='center'}
+
+# tibble with rps values
+plot_data_rps <- rps_comparison %>% 
+  select(match_id, bookmaker_code, overround, odds_method, rps, H, D, A) %>% 
+  filter(bookmaker_code == "PS") %>% 
+  gather(odds_type, odds_value, which(colnames(.) %in% c("H", "D", "A")))
+
+# seperate out original_odds and original_rps
+# right join odds values and rps values for the other odds methods
+# add rps scalar
+plot_data_rps <- plot_data_rps %>% 
+  filter(odds_method == "original_odds") %>% 
+  select(match_id, bookmaker_code, overround, odds_type, original_odds = odds_value, original_rps = rps) %>% 
+  right_join(., plot_data_rps %>% filter(odds_method != "original_odds"), by=c("match_id", "bookmaker_code", "overround", "odds_type")) %>% 
+  mutate(
+    rps_scalar = rps/original_rps, 
+    rps_diff = rps - original_rps
   )
+  
 
-# odds plot - only `A`
-pinnacle %>% 
-  select(`original_odds - A`, `proportional_odds - A`, `ratio_odds - A`) %>% 
-  gather(., odds_type, odds_value, which(colnames(.) %in% c("proportional_odds - A", "ratio_odds - A"))) %>% 
-  ggplot(., aes(`original_odds - A`, odds_value)) + 
-  geom_point(aes(colour = odds_type), alpha=0.1) + 
-  scale_x_log10() + 
-  scale_y_log10()
+# plot 'original_odds' vs 'rps scalar'
+plot_rps_diff <- plot_data_rps %>% 
+  ggplot(aes(1/original_odds, rps_scalar, colour = odds_method)) + 
+  geom_smooth(se = TRUE) + 
+  geom_hline(yintercept = 1, lty = 2) + 
+    coord_cartesian(xlim = c(0, 1), ylim = c(0.975, 1.075)) + 
+  scale_colour_discrete(
+    name = "Odds Method",
+    breaks = c("power_odds", "proportional_odds", "ratio_odds"),
+    labels = c("Power Odds", "Proportional Odds", "Ratio Odds")
+  ) + 
+  theme_classic() + 
+  theme(legend.justification = c(0.45, 0.8), legend.position = c(0.45, 0.8)) + 
+  labs(x = "Original Probabilities \n Fig 1.5", y = "RPS Scalar", title = "Comparing the Accuracy of Various Methods for Determining True Odds")
 
-# rps plot - points too close generally - maybe look at subsets?
-pinnacle %>% 
-  filter(`original_odds - H` < `original_odds - A`) %>% 
-  select(`original_odds - H`, ratio_RPS, proportional_RPS) %>% 
-  gather(., odds_type, rps_value, which(colnames(.) %in% c("ratio_RPS", "proportional_RPS"))) %>% 
-  ggplot(., aes(`original_odds - H`, rps_value)) + 
-  geom_point(aes(colour = odds_type))
+plot_rps_diff
 
-# plot boxplot to show too close?
-pinnacle %>% 
-  select(ratio_RPS, proportional_RPS) %>% 
-  gather(., odds_type, rps_value, which(colnames(.) %in% c("ratio_RPS", "proportional_RPS"))) %>% 
-  ggplot(., aes(odds_type, rps_value)) + 
-  geom_boxplot(aes(colour=odds_type))
-
-# fit linear model proportional vs ratio - then look at residuals
-linear_fit <- lm(ratio_RPS ~ proportional_RPS, data=pinnacle)
-
-test <- broom::augment(linear_fit)
-
-ggplot(pinnacle, aes(ratio_RPS, proportional_RPS)) + geom_point()
+rm(plot_rps_diff)
 
 
-# modelr - predictions & actual points
-linear_fit <- lm(ratio_RPS ~ proportional_RPS, data=pinnacle)
-
-grid <- pinnacle %>% 
-  modelr::data_grid(proportional_RPS) %>% 
-  modelr::add_predictions(linear_fit)
-
-ggplot(pinnacle, aes(x = proportional_RPS)) +
-  geom_point(aes(y = ratio_RPS)) +
-  geom_line(aes(y = pred), data = grid, colour = "red", size = 1)
+```
 
 
-# modelr - residuals
-linear_fit <- lm(ratio_RPS ~ proportional_RPS, data=pinnacle)
+Lets break down the graph (Fig 1.5) into three approximate sections on the 'Original Probabilities' axis:  
 
-grid <- pinnacle %>% 
-  modelr::add_residuals(linear_fit)
+* $0 < \text{Original Probability} < 0.3$  
+    + The 'Power Odds' method is the most accurate method for this range of Probabilities, since the RPS Scalar is below 1 & the RPS scalar value is the lowest for all the odds method.
+    + The 'Ratio Odds' & the 'Proportional Odds' methods are less accurate than the original odds values since the RPS Scalar are above the dotted line at RPS Scalar = 1.
+* $0.3 < \text{Original Probability} < 0.5$  
+    + The 'Power Odds' method is the least accurate method for this range of Probabilities, and is less accurate than the original odds values.
+    + The 'Ratio Odds' & the 'Proportional Odds' methods are more accurate than the 'Original Odds'.
+    + The 'Proportional Odds' method is the most accurate method in this Probability range.
+* $0.5 < \text{Original Probability} < 1$  
+    + Same pattern as the region Original Probability < 0.3. 
 
-ggplot(grid, aes(`original_odds - A`, resid)) + 
-  modelr::geom_ref_line(h = 0) +
-  geom_smooth()
+  
 
-grid %>% 
-  gather(., original_type, original_value, matches("original_odds")) %>% 
-  ggplot(., aes(original_value, resid)) + 
-  modelr::geom_ref_line(h = 0) + 
-  geom_smooth(aes(colour = original_type)) + 
-  scale_x_log10()
+&nbsp;
 
+  
+
+#### A New Method?
+
+What determines these cut off points where the most accurate method switches between the various methods?  
+
+If we could determine these cut off points we could create a more accurate method for determining the True Odds by picking the most appropriate method given the Original Odds values.  
+
+Lets consider some other factors which might effect these cut off points:  
+
+1. Odds Type - for example, does the odds value relate to 'Home', 'Draw' or 'Away' match outcome?
+2. Overround - as the overround increase does this effect the cut off points or promote a different method?
+3. Bookmaker - do we see the same patterns for all bookmakers?
+
+  
+In order to investigate these factors we need a method for determining these cut off points. We will do this by fitting a [LOESS Model]("https://en.wikipedia.org/wiki/Local_regression") using the Original Probabilities as our predictor variable (since it is defined regularly on the domain $\left[0, 1\right]$), and the RPS values or change in RPS values as a response variable. We can then use these predictions to determine the values where there are crossovers.
+
+
+
+```{r - loess rps fit, echo = FALSE, message = FALSE}
+
+# fit loess for rps_diff ~ original_odds
+loess_odds_methods <- plot_data_rps %>% 
+  select(match_id, original_odds, original_rps, odds_method, rps_diff) %>% 
+  mutate(original_probs = 1/original_odds) %>% 
+  group_by(odds_method) %>%  
+  do(fit = loess(rps_diff ~ original_probs, .))
+
+
+```
+
+```{r - rps crossover points, echo = FALSE, message = FALSE}
+
+test <- tibble(original_probs = seq(0, 1, by=0.0001)) %>% 
+  mutate(
+    ratio_odds = as.vector(predict(loess_odds_methods$fit[loess_odds_methods$odds_method == "ratio_odds"][[1]], newdata = .)), 
+    power_odds = as.vector(predict(loess_odds_methods$fit[loess_odds_methods$odds_method == "power_odds"][[1]], newdata = .)), 
+    proportional_odds = as.vector(predict(loess_odds_methods$fit[loess_odds_methods$odds_method == "proportional_odds"][[1]], newdata = .))
+  ) %>% 
+  drop_na()
+
+test %>% 
+  gather(odds_method, rps_diff, which(colnames(.) %in% c("ratio_odds", "power_odds", "proportional_odds"))) %>% 
+  ggplot(aes(original_probs, rps_diff, colour = odds_method)) + 
+  geom_line()
 
 
 ```
@@ -478,65 +689,41 @@ grid %>%
 
 
 
-#### H Favourite
-
-```{r h favourite, echo=TRUE}
-
-
-# bookmakers comparison - kable output
-bookmakers_summary_H <- football_data %>% 
-  group_by(bookmaker_name) %>% 
-  filter(`original_odds - H` <= `original_odds - A`) %>% 
-  summarise(
-    original_RPS = mean(original_RPS), 
-    ratio_RPS = mean(ratio_RPS), 
-    proportional_RPS = mean(proportional_RPS)
-  )
-
-
-# table output
-kable(
-  bookmakers_summary_H, 
-  col.names = c("Bookmaker", "Original Odds", "Ratio Odds", "Proportional Odds"), 
-  digits = 6, 
-  align = 'l', 
-  format = "markdown", 
-  caption = "RPS Summary by Bookmaker"
-)
+#### 1.
 
 
 
-```
 
 
 
-#### A Favourite
 
-```{r A favourite, echo=TRUE}
-
-
-# bookmakers comparison - kable output
-bookmakers_summary_H <- football_data %>% 
-  group_by(bookmaker_name) %>% 
-  filter(`original_odds - H` >= `original_odds - A`) %>% 
-  summarise(
-    original_RPS = mean(original_RPS), 
-    ratio_RPS = mean(ratio_RPS), 
-    proportional_RPS = mean(proportional_RPS)
-  )
+```{r test}
 
 
-# table output
-kable(
-  bookmakers_summary_H, 
-  col.names = c("Bookmaker", "Original Odds", "Ratio Odds", "Proportional Odds"), 
-  digits = 6, 
-  align = 'l', 
-  format = "markdown", 
-  caption = "RPS Summary by Bookmaker"
-)
+rps_plot <- tibble(original_probs = seq(0, 1, by=0.0001)) %>% 
+  mutate(
+    ratio_odds = as.vector(predict(loess_odds_methods$fit[loess_odds_methods$odds_method == "ratio_odds"][[1]], newdata = .)), 
+    power_odds = as.vector(predict(loess_odds_methods$fit[loess_odds_methods$odds_method == "power_odds"][[1]], newdata = .)), 
+    proportional_odds = as.vector(predict(loess_odds_methods$fit[loess_odds_methods$odds_method == "proportional_odds"][[1]], newdata = .))
+  ) %>% 
+  drop_na() %>% 
+  gather(odds_method, rps_diff, which(colnames(.) %in% c("ratio_odds", "power_odds", "proportional_odds"))) %>% 
+  ggplot(aes(1/original_probs, rps_diff, colour = odds_method)) + 
+  geom_line() + 
+  geom_hline(yintercept = 0, lty = 2) + 
+  coord_cartesian(xlim = c(1, 10), ylim = c(-0.0005, 0.0005)) + 
+  scale_colour_discrete(
+    name = "Odds Method",
+    breaks = c("power_odds", "proportional_odds", "ratio_odds"),
+    labels = c("Power Odds", "Proportional Odds", "Ratio Odds")
+  ) + 
+  theme_classic() + 
+  theme(legend.justification = c(1, 0), legend.position = c(1, 0)) + 
+  labs(x = "Original Odds \n Fig 1.5", y = "Scalar Multiple")
 
+rps_plot
 
+rm(rps_plot)
 
 ```
 
