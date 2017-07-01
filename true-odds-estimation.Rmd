@@ -697,8 +697,8 @@ plot_rps_diff <- plot_rps_diff %>%
 
 plot_rps_diff
 
-rm(plot_rps_diff)
 
+rm(loess_rps_diff)
 
 
 ```
@@ -725,7 +725,7 @@ Lets breakdown the graph by each Odds Method:
 
 #### A New Method?
 
-What determines these cut off points where the most accurate method switches between the various methods?  
+What determines these cut off points where the most accurate method switches between the various odds methods?  
 
 If we could determine these cut off points we could create a more accurate method for determining the True Odds by picking the most appropriate method given the Original Odds values.  
 
@@ -753,12 +753,10 @@ loess_odds_methods <- plot_data_rps %>%
 ```
 
 
-As an example - lets take the RPS Comparison from above where we estimated cross overpoint at Original Probability values of 0.3 & 0.5. 
+As an example - lets take the RPS Comparison from above & calculate the intersection points between the various methods.
 
 
-
-
-```{r - rps comparison crossover points, echo = FALSE, message = FALSE}
+```{r - rps comparison crossover points, echo = FALSE, message = FALSE, fig.width = 10, fig.height = 5, fig.show='hold', fig.align='center'}
 
 # tibble with even lattice of points and predictions
 rps_comparison_cross_over_points <- tibble(original_probs = seq(0, 1, by=0.00001)) %>% 
@@ -769,24 +767,78 @@ rps_comparison_cross_over_points <- tibble(original_probs = seq(0, 1, by=0.00001
   ) %>% 
   drop_na()
 
+
 # original plot
-rps_comparison_cross_over_points %>% 
+plot_rps_diff <- rps_comparison_cross_over_points %>% 
   gather(odds_method, rps_diff, which(colnames(.) %in% c("ratio_odds", "power_odds", "proportional_odds"))) %>% 
   ggplot(aes(original_probs, rps_diff, colour = odds_method)) + 
-  geom_smooth(se = TRUE) + 
-  coord_cartesian(xlim = c(0, 1), ylim = c(-0.00025, 0.00025)) + 
+  geom_smooth() + 
   geom_hline(yintercept = 0, lty = 2) + 
+  coord_cartesian(xlim = c(0, 1), ylim = c(-0.00015, 0)) + 
   scale_colour_discrete(
     name = "Odds Method",
     breaks = c("power_odds", "proportional_odds", "ratio_odds"),
     labels = c("Power Odds", "Proportional Odds", "Ratio Odds")
   ) + 
   theme_classic() + 
-  theme(legend.justification = c(0.45, 0.8), legend.position = c(0.45, 0.8)) + 
+  theme(legend.justification = c(1, 0.8), legend.position = c(1, 0.8)) + 
   labs(x = "Original Probabilities \n Fig 1.5", y = "RPS Difference", title = "Comparing the Accuracy of Various Methods for Determining True Odds")
 
-  
 
+# find crossover/intersection points - first find location of min, then output the value and the method
+rps_comparison_cross_over_points <- rps_comparison_cross_over_points %>% 
+  mutate(
+    min_odds = pmin(ratio_odds, power_odds, proportional_odds), 
+    min_method = rps_comparison_cross_over_points %>% 
+      select(one_of(c("ratio_odds", "power_odds", "proportional_odds"))) %>% transpose() %>% map_chr(function(x) names(which.min(x)))
+  ) %>% 
+  mutate(
+    crossover = ifelse(lead(min_method) != min_method | lag(min_method) != min_method | row_number() %in% c(1,nrow(.)), 1, 0)
+  )
+
+
+# plot of min_odds curve
+plot_rps_min <- rps_comparison_cross_over_points %>% 
+  ggplot(aes(original_probs, min_odds)) + 
+  geom_line(colour = "black") + 
+  geom_hline(yintercept = 0, lty = 2) + 
+  coord_cartesian(xlim = c(0, 1), ylim = c(-0.00015, 0)) + 
+  scale_colour_discrete(
+    name = "Odds Method",
+    breaks = c("power_odds", "proportional_odds", "ratio_odds"),
+    labels = c("Power Odds", "Proportional Odds", "Ratio Odds")
+  ) + 
+  theme_classic() + 
+  theme(legend.justification = c(1, 0.8), legend.position = c(1, 0.8)) + 
+  labs(x = "Original Probabilities \n Fig 1.5", y = "RPS Difference", title = "Comparing the Accuracy of Various Methods for Determining True Odds")
+
+# add cross over points
+plot_rps_min <- plot_rps_min + 
+  geom_vline(aes(xintercept = original_probs), data = rps_comparison_cross_over_points %>% filter(crossover == 1), lty = 2)
+
+# split data in two to prevent grouping of disjoint sets when applying geom_area
+geom_area_breakpoint <- rps_comparison_cross_over_points %>% 
+  filter(min_method == "proportional_odds" & crossover == 1)
+geom_area_breakpoint <- min(geom_area_breakpoint$original_probs)
+
+# add geom area
+plot_rps_test <- rps_comparison_cross_over_points %>% 
+  ggplot(aes(original_probs, min_odds, colour = min_method)) + 
+  geom_area(aes(fill = min_method), alpha=0.1, data = rps_comparison_cross_over_points %>% filter(original_probs <= geom_area_breakpoint)) + 
+  geom_area(aes(fill = min_method), alpha=0.1, data = rps_comparison_cross_over_points %>% filter(original_probs >= geom_area_breakpoint)) + 
+  theme_classic()
+
+# add colour ribbons
+# plot_rps_min <- plot_rps_min + 
+#   geom_ribbon(aes(x=original_probs, ymin=-1, ymax=min_odds), fill="red", alpha=0.1, data = rps_comparison_cross_over_points %>% filter(min_method == "power_odds")) +
+#   geom_ribbon(aes(x=original_probs, ymin=-1, ymax=min_odds), fill="blue", alpha=0.1, data = rps_comparison_cross_over_points %>% filter(min_method == "ratio_odds")) + 
+#   geom_ribbon(aes(x=original_probs, ymin=-1, ymax=min_odds), fill="green", alpha=0.1, data = rps_comparison_cross_over_points %>% filter(min_method == "proportional_odds"))
+
+
+
+grid.arrange(plot_rps_diff, nullGrob(), plot_rps_min,  top = textGrob("A Comparison of the Different Odds Methods"), widths=c(0.475, 0.05, 0.475))
+
+plot_rps_test
 
 ```
 
