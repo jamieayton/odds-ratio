@@ -9,7 +9,7 @@ output:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, cache = TRUE)
 
 library('tidyverse')
 library('stringr')
@@ -396,20 +396,20 @@ Curiously this is not true for the bookmaker 'Bet Brain - Max', perhaps this is 
 We also note that the bookmaker 'Pinnacle Sports' consistently has the lowest RPS regardless of the odds method.  
 
 
-Let's focus on the 'Pinnacle Sports' odds and try to look at the different odds methods in more detail.  
-
-
 ***
 
 
 
 ### Pinnacle Sports Odds
 
+Let's focus on the 'Pinnacle Sports' odds and try to look at the different odds methods in more detail. 
 
-First lets visually compare the odds to the original odds. 
-
+&nbsp; 
   
 ### Odds Comparison
+
+First lets visually compare the odds to the original odds.  
+
 
 ```{r plot - odds & probs comparison, echo = FALSE, message = FALSE, fig.width = 10, fig.height = 5, fig.show='hold', fig.align='center'}
 
@@ -724,7 +724,7 @@ Lets breakdown the graph by each Odds Method:
 
   
 
-### A New Method?
+### A Combined Method
 
 What determines these cut off points where the most accurate method switches between the various odds methods?  
 
@@ -848,19 +848,152 @@ rm(plot_rps_diff, plot_rps_min)
 ```
 
 
-From Fig 1.7 we see that we can define a new Odds Method by choosing a different method for different domains of the Original Probabilties:
+From Fig 1.7 we see that we can define a new Odds Method by choosing a different method for different domains of the Original Probabilties:  
 
-* 0 < Original Probabilities <= 0.27401 - we use the 'Power Odds' method
-* 0.27401 < Original Probabilities <= 0.29634 - 'Ratio Odds'
-* 0.29634 < Original Probabilities <= 0.44363 - 'Proportional Odds'
-* 0.44363 < Original Probabilities <= 0.45983 - 'Ratio Odds'
-* 0.45983 < Original Probabilities <= 1 - 'Power Odds'
+```{r final model, echo = FALSE, results = 'asis'}
 
+# output above model as kable table
+
+model_spec <- tibble(
+  original_probs_lower = c(
+    "0", 
+    "0.27401", 
+    "0.29634", 
+    "0.44363", 
+    "0.45983"
+  ), 
+  original_probs_equality = c(
+    " < x <= ", 
+    " < x <= ", 
+    " < x <= ", 
+    " < x <= ", 
+    " < x <= "
+  ), 
+  original_probs_upper = c(
+    "0.27401", 
+    "0.29634", 
+    "0.44363", 
+    "0.45983", 
+    "1.0"
+  ),
+  odds_method = c(
+    "Power Odds", "Ratio Odds", "Proportional Odds", "Ratio Odds", "Power Odds"
+  )
+)
+
+
+# table output
+kable(
+  model_spec, 
+  col.names = c("Lower Bound", "Original Probabilities", "Upper Bound", "Odds Method"), 
+  align = c("r", "c", "l", "c"), 
+  padding = 0, 
+  format = "markdown"
+)
+
+    
+
+```
+
+&nbsp; 
+
+Finally - here is a table comparing the RPS values for the Original Odds method, the 3 True Odds methods already seen, and the Combined Method for determining True Odds. We already know that the Power Odds method is the most accurate of the 3 methods - and the Combined Method is more accurate but only by a very small amount.  
+
+
+```{r rps calculation with combined method, echo=FALSE}
+
+# add combined method
+rps_comparison_with_combined <- rps_comparison %>% 
+  filter(bookmaker_code == "PS") %>% 
+  select(match_id, bookmaker_code, overround, odds_method, A, D, H, rps) %>% 
+  gather(odds_type, odds_value, which(colnames(.) %in% c("H", "D", "A")))
+
+combined_method <- rps_comparison_with_combined %>% 
+  select(match_id, bookmaker_code, overround, odds_method, odds_type, odds_value) %>% 
+  filter(odds_method == "original_odds") %>% 
+  mutate(probs_value = 1/odds_value) %>% 
+  mutate(
+    combined_method = case_when(
+      0 < probs_value & probs_value <= 0.27401 ~ "power_odds", 
+      0.27401 < probs_value & probs_value <= 0.29634 ~ "ratio_odds", 
+      0.29634 < probs_value & probs_value <= 0.44363 ~ "proportional_odds", 
+      0.44363 < probs_value & probs_value <= 0.45983 ~ "ratio_odds", 
+      0.45983 < probs_value & probs_value <= 1.0 ~ "power_odds"
+    )
+  ) %>% 
+  left_join(
+    ., 
+    rps_comparison_with_combined %>% select("match_id", "bookmaker_code", "overround", "odds_type", "odds_value", "odds_method", "rps"),  
+    by = c("match_id", "bookmaker_code", "overround", "odds_type", "combined_method" = "odds_method")
+  ) %>% 
+  rename(original_odds_value = odds_value.x, odds_value = odds_value.y) %>% 
+  mutate(odds_method = "combined_method") %>% 
+  select(match_id, bookmaker_code, overround, odds_method, odds_type, odds_value, rps)
+
+# add combine_method to existing tibble of methods
+rps_comparison_with_combined <- bind_rows(
+  rps_comparison_with_combined, combined_method
+)
+
+
+# output summary table
+rps_comparison_with_combined_summary <- rps_comparison_with_combined %>% 
+  group_by(odds_method) %>% 
+  summarise(
+    matches = n_distinct(match_id), 
+    overround = mean(overround), 
+    rps = mean(rps)
+  ) %>% 
+  ungroup() %>%
+  spread(
+    odds_method, rps
+  )
   
-&nbsp;
+# table output
+kable(
+  rps_comparison_with_combined_summary, 
+  col.names = c("Matches", "Overround", "Combined Method", "Original Odds", "Power Odds", "Proportional Odds", "Ratio Odds"), 
+  digits = c(0,6,6,6,6,6,6), 
+  align = 'l', 
+  format = "markdown", 
+  caption = "RPS Summary by Bookmaker & Odds Estimation Method"
+)
 
 
 
+```
 
+&nbsp; 
 
+***
+
+### Further Investigations
+
+There are other factors that could affect which odds method is the most accurate for predicting the 'True Odds':
+
+* Overround
+* Bookmaker - this factor is heavily linked to the 'Overround' since each bookmaker will run a different Overround %
+* Which team is the favourite - ie. either Home team or the Away team
+* The match outcome that is being predicted - for example the 'Draw' odds value is usually a midpoint between the other two odds values.
+
+The above factors are all heavily linked together so it is difficult to analyse each individually. For example the 'Bookmaker' & 'Overround' factors are heavily linked since each bookmaker will run a different Overround %, but then the overround could also depend on the league that the odds are from since liquidity might be lower in this league.
+
+&nbsp; 
+
+***
+
+### Finale 
+
+In summary we see that:
+
+* The 'Pinnacle Sports' odds are the most accurate set of Original Odds
+* The Power Odds method is the most accurate overall method for predicting the 'True Odds' from the Original Odds
+    - The Power Odds method is the most accurate method for 'large' & 'small' values of the Original Probabilities
+    - The Proportional Odds method is the most accurate method for 'medium' values of the Original Probabilities
+* We can create a combined method using the most accurate method for different domains of Original Probabilities
+* There are lots of other factors that could effect which Odds method is the most accurate for predicting 'True Odds'
+
+&nbsp; 
+
+***
 
