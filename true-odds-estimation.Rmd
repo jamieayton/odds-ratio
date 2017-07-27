@@ -409,7 +409,7 @@ Let's focus on the 'Pinnacle Sports' odds and try to look at the different odds 
 First lets visually compare the odds to the original odds. 
 
   
-#### Odds Comparison
+### Odds Comparison
 
 ```{r plot - odds & probs comparison, echo = FALSE, message = FALSE, fig.width = 10, fig.height = 5, fig.show='hold', fig.align='center'}
 
@@ -636,14 +636,14 @@ Lets visualize the RPS values as a comparison to the Original Odds values.
 
 &nbsp;
 
-#### RPS Comparison
+### RPS Comparison
 
 If we try to plot the RPS values we will run into the same situation that we did with visualizing the odds values - the values will be too close to distinguish the different odds methods. So similar to the odds plots we will need to plot a variable which represents the change in the RPS value.  
 
 Lets define the RPS Difference $\lambda$ to be such that $\lambda = \text{RPS}_{\text{True Odds}} - \text{RPS}_{\text{Original Odds}}$. Then if $\lambda < 0$ this means that the 'True Odds' produced are more accurate than the 'Original odds', and conversely if $\lambda > 0$ then the 'Original odds' are more accurate.  
 
   
-```{r - rps comparison diff, echo = FALSE, message = FALSE, fig.width = 10, fig.height = 5, fig.show='hold', fig.align='center'}
+```{r - rps comparison diff, echo = FALSE, message = FALSE, fig.width = 12, fig.height = 6, fig.show='hold', fig.align='center'}
 
 # tibble with rps values
 plot_data_rps <- rps_comparison %>% 
@@ -704,17 +704,18 @@ rm(loess_rps_diff)
 ```
 
 Lets breakdown the graph by each Odds Method: 
-* Power Odds
+
+* Power Odds  
     + More accurate than the 'Original Odds' for the whole probability domain - since the RPS Difference value is negative.
-    + Most accurate method for $\text{Original Probability} < \approx 0.25$ & $\approx0.5 < \text{Original Probability}$.
-    + Least accurate method for $\approx 0.3 < \text{Original Probability} < \approx 0.4$.
-* Proportional Odds
-    + More accurate than the 'Original Odds' for $\approx 0.2 < \text{Original Probability} < \approx 0.65$.
-    + Most accurate method for $\approx 0.3 < \text{Original Probability} < \approx 0.4$.
-    + Least accurate method for $\text{Original Probability} < \approx 0.3$ & $\approx 0.4 < \text{Original Probability}$
-* Ratio Odds
-    + More accurate than the 'Original Odds' for $\approx 0.1 < \text{Original Probability} < \approx 0.8$.
-    + It appears there are two very small regions around $\text{Original Probability} \approx 0.3$ & $\text{Original Probability} \approx 0.4 where this method is the most accurate method.
+    + Most accurate method for (approximately) Original Probability < ~0.25 & 0.5 < Original Probability.
+    + Least accurate method for 0.3 < Original Probability < 0.4.
+* Proportional Odds  
+    + More accurate than the 'Original Odds' for 0.2 < Original Probability < 0.65.
+    + Most accurate method for 0.3 < Original Probability < 0.4.
+    + Least accurate method for Original Probability < 0.3 & 0.4 < Original Probability
+* Ratio Odds  
+    + More accurate than the 'Original Odds' for 0.1 < Original Probability < 0.8.
+    + It appears there are two very small regions around Original Probability = 0.3 & Original Probability = 0.4 where this method is the most accurate method.
     + This method doesn't appear to be the least accurate method for any probability domain.
 
 
@@ -723,7 +724,7 @@ Lets breakdown the graph by each Odds Method:
 
   
 
-#### A New Method?
+### A New Method?
 
 What determines these cut off points where the most accurate method switches between the various odds methods?  
 
@@ -732,8 +733,9 @@ If we could determine these cut off points we could create a more accurate metho
 Lets consider some other factors which might effect these cut off points:  
 
 1. Odds Type - for example, does the odds value relate to 'Home', 'Draw' or 'Away' match outcome?
-2. Overround - as the overround increase does this effect the cut off points or promote a different method?
-3. Bookmaker - do we see the same patterns for all bookmakers?
+2. Favourite - does it affect the cutoff if the Home team is the favourite or if the Away team is the favourite?
+3. Overround - as the overround increase does this effect the cut off points or promote a different method?
+4. Bookmaker - do we see the same patterns for all bookmakers?
 
   
 In order to investigate these factors we need a method for determining these cut off points. We will do this by fitting a [LOESS Model]("https://en.wikipedia.org/wiki/Local_regression") using the Original Probabilities as our predictor variable (since it is defined regularly on the domain $\left[0, 1\right]$), and the RPS values or change in RPS values as a response variable. We can then use these predictions to determine the values where there are crossovers.
@@ -756,7 +758,7 @@ loess_odds_methods <- plot_data_rps %>%
 As an example - lets take the RPS Comparison from above & calculate the intersection points between the various methods.
 
 
-```{r - rps comparison crossover points, echo = FALSE, message = FALSE, fig.width = 10, fig.height = 5, fig.show='hold', fig.align='center'}
+```{r - rps comparison crossover points, echo = FALSE, message = FALSE, fig.width = 12, fig.height = 6, fig.show='hold', fig.align='center'}
 
 # tibble with even lattice of points and predictions
 rps_comparison_cross_over_points <- tibble(original_probs = seq(0, 1, by=0.00001)) %>% 
@@ -781,8 +783,8 @@ plot_rps_diff <- rps_comparison_cross_over_points %>%
     labels = c("Power Odds", "Proportional Odds", "Ratio Odds")
   ) + 
   theme_classic() + 
-  theme(legend.justification = c(1, 0.8), legend.position = c(1, 0.8)) + 
-  labs(x = "Original Probabilities \n Fig 1.5", y = "RPS Difference", title = "Comparing the Accuracy of Various Methods for Determining True Odds")
+  theme(legend.justification = c(1, 0.6), legend.position = c(1, 0.6)) + 
+  labs(x = "Original Probabilities \n Fig 1.6", y = "RPS Difference")
 
 
 # find crossover/intersection points - first find location of min, then output the value and the method
@@ -793,28 +795,28 @@ rps_comparison_cross_over_points <- rps_comparison_cross_over_points %>%
       select(one_of(c("ratio_odds", "power_odds", "proportional_odds"))) %>% transpose() %>% map_chr(function(x) names(which.min(x)))
   ) %>% 
   mutate(
-    crossover = ifelse(lead(min_method) != min_method | lag(min_method) != min_method | row_number() %in% c(1,nrow(.)), 1, 0)
+    crossover = ifelse(lead(min_method) != min_method | lag(min_method) != min_method | row_number() %in% c(1,nrow(.)), 1, 0), 
+    event_label = ifelse(crossover == 1, paste0("x = ", original_probs), "")
   )
-
 
 # plot of min_odds curve
 plot_rps_min <- rps_comparison_cross_over_points %>% 
   ggplot(aes(original_probs, min_odds)) + 
   geom_line(colour = "black") + 
   geom_hline(yintercept = 0, lty = 2) + 
-  coord_cartesian(xlim = c(0, 1), ylim = c(-0.00015, 0)) + 
-  scale_colour_discrete(
-    name = "Odds Method",
-    breaks = c("power_odds", "proportional_odds", "ratio_odds"),
-    labels = c("Power Odds", "Proportional Odds", "Ratio Odds")
-  ) + 
-  theme_classic() + 
-  theme(legend.justification = c(1, 0.8), legend.position = c(1, 0.8)) + 
-  labs(x = "Original Probabilities \n Fig 1.5", y = "RPS Difference", title = "Comparing the Accuracy of Various Methods for Determining True Odds")
+  coord_cartesian(xlim = c(0, 1), ylim = c(-0.00015, 0))
 
 # add cross over points
 plot_rps_min <- plot_rps_min + 
-  geom_vline(aes(xintercept = original_probs), data = rps_comparison_cross_over_points %>% filter(crossover == 1), lty = 2)
+  geom_vline(aes(xintercept = original_probs), data = rps_comparison_cross_over_points %>% filter(crossover == 1), lty = 2) + 
+  geom_text(
+    aes(original_probs, 0, label = event_label), size = 4, angle = 90, vjust = +1.2, hjust = 3, 
+    data = rps_comparison_cross_over_points %>% filter(crossover == 1) %>% filter(row_number() %in% c(5, 9))
+  ) + 
+  geom_text(
+    aes(original_probs, 0, label = event_label), size = 4, angle = 90, vjust = -0.6, hjust = 3, 
+    data = rps_comparison_cross_over_points %>% filter(crossover == 1) %>% filter(row_number() %in% c(2, 6))
+  ) 
 
 # split data in two to prevent grouping of disjoint sets when applying geom_area
 geom_area_breakpoint <- rps_comparison_cross_over_points %>% 
@@ -822,66 +824,41 @@ geom_area_breakpoint <- rps_comparison_cross_over_points %>%
 geom_area_breakpoint <- min(geom_area_breakpoint$original_probs)
 
 # add geom area
-plot_rps_test <- rps_comparison_cross_over_points %>% 
-  ggplot(aes(original_probs, min_odds, colour = min_method)) + 
+plot_rps_min <- plot_rps_min + 
   geom_area(aes(fill = min_method), alpha=0.1, data = rps_comparison_cross_over_points %>% filter(original_probs <= geom_area_breakpoint)) + 
   geom_area(aes(fill = min_method), alpha=0.1, data = rps_comparison_cross_over_points %>% filter(original_probs >= geom_area_breakpoint)) + 
-  theme_classic()
-
-# add colour ribbons
-# plot_rps_min <- plot_rps_min + 
-#   geom_ribbon(aes(x=original_probs, ymin=-1, ymax=min_odds), fill="red", alpha=0.1, data = rps_comparison_cross_over_points %>% filter(min_method == "power_odds")) +
-#   geom_ribbon(aes(x=original_probs, ymin=-1, ymax=min_odds), fill="blue", alpha=0.1, data = rps_comparison_cross_over_points %>% filter(min_method == "ratio_odds")) + 
-#   geom_ribbon(aes(x=original_probs, ymin=-1, ymax=min_odds), fill="green", alpha=0.1, data = rps_comparison_cross_over_points %>% filter(min_method == "proportional_odds"))
-
-
-
-grid.arrange(plot_rps_diff, nullGrob(), plot_rps_min,  top = textGrob("A Comparison of the Different Odds Methods"), widths=c(0.475, 0.05, 0.475))
-
-plot_rps_test
-
-```
-
-
-
-
-#### 1.
-
-
-
-
-
-
-
-```{r test}
-
-
-rps_plot <- tibble(original_probs = seq(0, 1, by=0.0001)) %>% 
-  mutate(
-    ratio_odds = as.vector(predict(loess_odds_methods$fit[loess_odds_methods$odds_method == "ratio_odds"][[1]], newdata = .)), 
-    power_odds = as.vector(predict(loess_odds_methods$fit[loess_odds_methods$odds_method == "power_odds"][[1]], newdata = .)), 
-    proportional_odds = as.vector(predict(loess_odds_methods$fit[loess_odds_methods$odds_method == "proportional_odds"][[1]], newdata = .))
-  ) %>% 
-  drop_na() %>% 
-  gather(odds_method, rps_diff, which(colnames(.) %in% c("ratio_odds", "power_odds", "proportional_odds"))) %>% 
-  ggplot(aes(1/original_probs, rps_diff, colour = odds_method)) + 
-  geom_line() + 
-  geom_hline(yintercept = 0, lty = 2) + 
-  coord_cartesian(xlim = c(1, 10), ylim = c(-0.0005, 0.0005)) + 
-  scale_colour_discrete(
+  scale_fill_discrete(
     name = "Odds Method",
     breaks = c("power_odds", "proportional_odds", "ratio_odds"),
     labels = c("Power Odds", "Proportional Odds", "Ratio Odds")
-  ) + 
+  )
+
+# add meta data
+plot_rps_min <- plot_rps_min + 
   theme_classic() + 
-  theme(legend.justification = c(1, 0), legend.position = c(1, 0)) + 
-  labs(x = "Original Odds \n Fig 1.5", y = "Scalar Multiple")
+  theme(legend.justification = c(0.8, 0.8), legend.position = c(0.8, 0.8)) + 
+  labs(x = "Original Probabilities \n Fig 1.7", y = "RPS Difference")
 
-rps_plot
 
-rm(rps_plot)
+# output plots side by side
+grid.arrange(plot_rps_diff, nullGrob(), plot_rps_min,  top = textGrob("Combined Odds Method"), widths=c(0.475, 0.05, 0.475))
+
+rm(plot_rps_diff, plot_rps_min)
 
 ```
+
+
+From Fig 1.7 we see that we can define a new Odds Method by choosing a different method for different domains of the Original Probabilties:
+
+* 0 < Original Probabilities <= 0.27401 - we use the 'Power Odds' method
+* 0.27401 < Original Probabilities <= 0.29634 - 'Ratio Odds'
+* 0.29634 < Original Probabilities <= 0.44363 - 'Proportional Odds'
+* 0.44363 < Original Probabilities <= 0.45983 - 'Ratio Odds'
+* 0.45983 < Original Probabilities <= 1 - 'Power Odds'
+
+  
+&nbsp;
+
 
 
 
