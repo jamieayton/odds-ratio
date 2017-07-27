@@ -8,7 +8,7 @@ Jamie Ayton
 ### Summary
 
 I have previously shown how to calculate the [Odds Ratio](http://htmlpreview.github.io/?https://github.com/jamieayton/odds-ratio/blob/master/odds-ratio.html) and how to estimate the true odds (and thus the true probabilities) from given Bookmakers odds.
-Lets compare the 'Odds Ratio' method to a couple of other methods of estimating the true odds - 'Proportional Odds' & the 'Power Method'.  
+Lets compare the 'Odds Ratio' method to a couple of other methods of estimating the true odds - 'Proportional Odds' & the '[Power Odds](http://www.jmlr.org/papers/volume10/vovk09a/vovk09a.pdf)'.  
 
 We will compare the three methods by calculating the implied true probabilities for each method and then calculating Ranked Probability Score for real bookmakers odds for the 1x2 market of a selection of football matches. The odds data is from [www.football-data.co.uk](http://www.football-data.co.uk/).  
 
@@ -228,8 +228,7 @@ From Fig 1.7 we see that we can define a new Odds Method by choosing a different
 
 &nbsp; 
 
-Finally - here is a table comparing the RPS values for the Original Odds method, the 3 True Odds methods already seen, and the Combined Method for determining True Odds.  
-
+Finally - here is a table comparing the RPS values for the Original Odds method, the 3 True Odds methods already seen, and the Combined Method for determining True Odds. We already know that the Power Odds method is the most accurate of the 3 methods - and the Combined Method is more accurate but only by a very small amount.  
 
 
 
